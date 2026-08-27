@@ -12,14 +12,14 @@ const centered = (
   x: number,
   y: number,
   width: number,
-  fontSize = 9,
+  fontSize = 10,
 ): PdfField => ({ x, y, width, fontSize, align: "center" });
 
 const left = (
   x: number,
   y: number,
   width: number,
-  fontSize = 9,
+  fontSize = 10,
 ): PdfField => ({ x, y, width, fontSize, align: "left" });
 
 export const pdfFieldMap = {
