@@ -24,3 +24,11 @@
 - 원본 HWP 두 파일은 수정하지 않았습니다.
 - `samples/`, `hancom-pdf/`, `renders/`는 합성 QA 산출물이며 Vercel 배포 루트 밖에 있습니다.
 - 원본 작성요령에 포함된 교직원 실명은 공개 화면과 배포 자산에서 제외했습니다.
+
+## Vercel 배포 상태
+
+- Vercel CLI 54.15.1 설치 확인
+- 로컬 Vercel 인증 토큰 없음
+- 무로그인 배포 엔드포인트가 더 이상 Preview를 생성하지 않고 CLI 사용 안내만 반환함
+- CLI 로그인에 필요한 Vercel OIDC 주소 연결이 반복적으로 `ECONNRESET`되어 인증을 완료하지 못함
+- Preview 배포는 Vercel 토큰 또는 로그인된 CLI 환경이 준비되면 이어서 수행해야 함
