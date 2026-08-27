@@ -26,7 +26,7 @@ web/src/assets/templates/
 
 HWP 구조 분석과 필드 위치 확인에는 오픈소스 [`claw-hwp`](https://github.com/DoHyun468/claw-hwp)를 사용했습니다. 배포된 웹앱은 외부 MCP 서버를 호출하지 않고, `claw-hwp 1.5.58`의 `cell-patch` 런타임을 프로젝트에 포함해 Vercel 서버에서 직접 실행합니다. 따라서 사용자는 별도로 MCP를 설치할 필요가 없습니다.
 
-원본과 라이선스 표기는 [`web/vendor/claw-hwp/NOTICE.md`](web/vendor/claw-hwp/NOTICE.md)에서 확인할 수 있습니다.
+원본·원저작자·제3자 라이선스 표기는 [`web/vendor/claw-hwp/NOTICE.md`](web/vendor/claw-hwp/NOTICE.md)와 [`LICENSE.claw-hwp`](web/vendor/claw-hwp/LICENSE.claw-hwp)에서 확인할 수 있습니다.
 
 ## 실행
 
