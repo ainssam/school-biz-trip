@@ -1,0 +1,30 @@
+{
+  "table": {
+    "section": 0,
+    "paragraph": 3,
+    "control": 0
+  },
+  "fields": {
+    "school": { "row": 0, "col": 1 },
+    "position": { "row": 0, "col": 6 },
+    "name": { "row": 0, "col": 10 },
+    "schedule": { "row": 1, "col": 2 },
+    "destination": { "row": 2, "col": 2 },
+    "purpose": { "row": 3, "col": 2 },
+    "lodgingPaid": { "row": 4, "col": 2 },
+    "lodgingActual": { "row": 4, "col": 4 },
+    "lodgingReason": { "row": 4, "col": 8 },
+    "mealsPaid": { "row": 5, "col": 2 },
+    "mealsActual": { "row": 5, "col": 4 },
+    "mealsReason": { "row": 5, "col": 8 },
+    "attachments": { "row": 11, "col": 0, "cellParagraph": 2 },
+    "applicationDate": { "row": 11, "col": 0, "cellParagraph": 4 },
+    "signature": { "row": 11, "col": 0, "cellParagraph": 7 }
+  },
+  "routes": [
+    { "row": 7, "date": 1, "transport": 2, "from": 3, "to": 4, "grade": 7, "fare": 8 },
+    { "row": 8, "date": 1, "transport": 2, "from": 3, "to": 4, "grade": 7, "fare": 8 },
+    { "row": 9, "date": 1, "transport": 2, "from": 3, "to": 4, "grade": 7, "fare": 8 },
+    { "row": 10, "date": 1, "transport": 2, "from": 3, "to": 4, "grade": 7, "fare": 8 }
+  ]
+}

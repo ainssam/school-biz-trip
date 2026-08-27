@@ -1,0 +1,11 @@
+{
+  "source": "web/src/assets/templates/template-field-map.json",
+  "verified": {
+    "section": 0,
+    "paragraph": 3,
+    "control": 0,
+    "rows": 12,
+    "columns": 11,
+    "cells": 59
+  }
+}
