@@ -47,6 +47,17 @@ export function TravelExpenseApp() {
       <footer className="site-footer">
         <span>원본 파일은 수정하지 않으며, 생성 결과는 사용자의 기기에만 내려받습니다.</span>
         <span>
+          HWP 생성 엔진: {" "}
+          <a
+            href="https://github.com/DoHyun468/claw-hwp"
+            rel="noreferrer"
+            target="_blank"
+          >
+            claw-hwp
+          </a>
+          {" "}기반
+        </span>
+        <span>
           제작: 서아인 · 자료 오류·정정·삭제 요청: {" "}
           <a href="mailto:ainssam@ai.cne.go.kr">ainssam@ai.cne.go.kr</a>
         </span>

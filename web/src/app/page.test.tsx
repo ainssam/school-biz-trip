@@ -16,3 +16,12 @@ it("간결한 업무 화면 머리글에서 문서명과 개인정보 보호 안
   ).toBeInTheDocument();
   expect(banner).toHaveTextContent("개인정보 보호");
 });
+
+it("HWP 생성에 사용하는 claw-hwp 엔진을 푸터에 밝힌다", () => {
+  render(<Page />);
+
+  expect(screen.getByRole("link", { name: "claw-hwp" })).toHaveAttribute(
+    "href",
+    "https://github.com/DoHyun468/claw-hwp",
+  );
+});

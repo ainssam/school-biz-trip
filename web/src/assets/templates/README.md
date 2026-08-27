@@ -11,6 +11,8 @@
 5. `registry.json`의 `templates` 배열에 학교 정보를 추가합니다.
 6. 테스트와 빌드를 실행한 뒤 GitHub에 올립니다.
 
+HWP 표의 section, paragraph, control, row, col 위치를 찾을 때는 [`claw-hwp`](https://github.com/DoHyun468/claw-hwp)의 문서 구조 검사 기능을 사용할 수 있습니다. 실제 웹앱 생성 단계에서는 저장소에 포함된 `cell-patch` 런타임이 이 좌표를 사용합니다.
+
 ```text
 templates/
 ├─ registry.json
