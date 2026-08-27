@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
       "./vendor/claw-hwp/**/*",
       "./src/assets/templates/travel-expense-template.hwp",
     ],
+    "/api/generate/pdf": [
+      "./src/assets/templates/travel-expense-template.pdf",
+      "./src/assets/fonts/NanumMyeongjo-Regular.ttf",
+    ],
   },
 };
 

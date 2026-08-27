@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local font experiments (the app uses NanumMyeongjo-Regular.ttf)
+/src/assets/fonts/NotoSerif*.ttf
+/src/assets/fonts/*.otf
+/src/assets/fonts/noto-serif-kr*.woff
+
 # vercel
 .vercel
 
