@@ -13,6 +13,7 @@ type RouteEditorProps = {
   append: UseFieldArrayAppend<TravelExpenseInput, "routes">;
   remove: UseFieldArrayRemove;
   onAddReturn: () => void;
+  validationMessages: Record<string, string>;
 };
 
 const transportOptions = [
@@ -31,6 +32,7 @@ export function RouteEditor({
   append,
   remove,
   onAddReturn,
+  validationMessages,
 }: RouteEditorProps) {
   const publicTransit = travelType === "public";
 
@@ -76,6 +78,7 @@ export function RouteEditor({
                   placeholder="예: 천안"
                   {...register(`routes.${index}.from`)}
                 />
+                <RouteFieldError message={validationMessages[`routes.${index}.from`]} />
               </label>
               <label>
                 <span>도착지</span>
@@ -85,6 +88,7 @@ export function RouteEditor({
                   placeholder="예: 서울"
                   {...register(`routes.${index}.to`)}
                 />
+                <RouteFieldError message={validationMessages[`routes.${index}.to`]} />
               </label>
               <label>
                 <span>등급</span>
@@ -101,19 +105,22 @@ export function RouteEditor({
                 <span>금액</span>
                 {publicTransit ? (
                   <input
+                    key="public-fare"
                     aria-label={`금액 ${index + 1}`}
                     inputMode="numeric"
                     min="0"
                     type="number"
                     {...register(`routes.${index}.fare`, {
-                      setValueAs: (value) => Number(value || 0),
+                      setValueAs: (value) =>
+                        value === "미기재" ? "미기재" : Number(value || 0),
                     })}
                   />
                 ) : (
                   <input
+                    key="non-public-fare"
                     aria-label={`금액 ${index + 1}`}
                     readOnly
-                    value="미기재"
+                    value=""
                   />
                 )}
               </label>
@@ -173,4 +180,8 @@ export function transportFor(travelType: TravelType): string {
     ride: "차량동승",
     charter: "전세버스",
   }[travelType];
+}
+
+function RouteFieldError({ message }: { message?: string }) {
+  return message ? <span className="field-error">{message}</span> : null;
 }

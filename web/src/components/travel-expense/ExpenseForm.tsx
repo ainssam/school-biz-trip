@@ -11,12 +11,18 @@ import {
   type TravelType,
 } from "@/lib/travel-expense/schema";
 import {
+  formatFareForOutput,
   makeDownloadFilename,
   makeReturnRoute,
   sumFare,
 } from "@/lib/travel-expense/transform";
+import {
+  defaultTemplateId,
+  getTemplateById,
+  templateCatalog,
+} from "@/lib/templates/template-registry";
 
-const defaultSchool = "복자여자고등학교";
+const defaultSchool = getTemplateById(defaultTemplateId).school;
 
 function today(): string {
   const now = new Date();
@@ -27,6 +33,7 @@ function today(): string {
 function defaultValues(): TravelExpenseInput {
   const date = today();
   return {
+    templateId: defaultTemplateId,
     school: defaultSchool,
     position: "교사",
     name: "",
@@ -69,6 +76,7 @@ export function ExpenseForm() {
   const [positionMode, setPositionMode] = useState("교사");
   const [busy, setBusy] = useState<"hwp" | "pdf" | null>(null);
   const [status, setStatus] = useState("");
+  const [confirmedSignature, setConfirmedSignature] = useState<string | null>(null);
   const [validationMessages, setValidationMessages] = useState<
     Record<string, string>
   >({});
@@ -78,6 +86,8 @@ export function ExpenseForm() {
   const { fields, append, remove } = useFieldArray({ control, name: "routes" });
   const values = useWatch({ control });
   const travelType = useWatch({ control, name: "travelType" }) ?? "public";
+  const templateId =
+    useWatch({ control, name: "templateId" }) ?? defaultTemplateId;
   const routeValues = useWatch({ control, name: "routes" }) ?? [];
   const totalFare = sumFare(routeValues);
 
@@ -92,7 +102,13 @@ export function ExpenseForm() {
 
   function addReturnRoute() {
     if (fields.length >= 4) return;
-    append(makeReturnRoute(getValues("routes.0")));
+    const returnRoute = makeReturnRoute(getValues("routes.0"));
+    append({
+      ...returnRoute,
+      date: getValues("tripEnd"),
+      transport: transportFor(travelType),
+      fare: travelType === "public" ? returnRoute.fare : "미기재",
+    });
   }
 
   async function download(format: "hwp" | "pdf") {
@@ -105,7 +121,10 @@ export function ExpenseForm() {
         if (!messages[key]) messages[key] = issue.message;
       }
       setValidationMessages(messages);
-      setStatus("입력 내용을 확인한 뒤 다시 내려받아 주세요.");
+      const labels = Array.from(
+        new Set(parsed.error.issues.map((issue) => validationLabel(issue.path))),
+      );
+      setStatus(`다음 필수 입력을 확인해 주세요: ${labels.join(", ")}`);
       return;
     }
 
@@ -140,10 +159,69 @@ export function ExpenseForm() {
   }
 
   const hasOtherAttachment = values.attachments?.includes("other");
+  const attachmentSummary = values.attachments?.length
+    ? values.attachments
+        .map((value) => {
+          const label = attachmentOptions.find(([key]) => key === value)?.[1];
+          if (value === "other" && values.attachmentOther) {
+            return `${label}: ${values.attachmentOther}`;
+          }
+          return label;
+        })
+        .filter(Boolean)
+        .join(", ")
+    : "—";
+  const reviewSignature = JSON.stringify(values);
+  const reviewConfirmed = confirmedSignature === reviewSignature;
+  const reviewItems = [
+    travelType === "public"
+      ? `대중교통 운임 합계: ${totalFare.toLocaleString("ko-KR")}원`
+      : `${travelTypeLabel(travelType)}: 운임 금액 없음`,
+    hasExpense(values.lodging)
+      ? `숙박비: ${expenseSummary(values.lodging)}`
+      : "숙박비: 정산 없음",
+    hasExpense(values.meals)
+      ? `식비: ${expenseSummary(values.meals)}`
+      : "식비: 정산 없음",
+    attachmentSummary === "—"
+      ? "첨부서류: 없음"
+      : `첨부서류: ${attachmentSummary}`,
+  ];
 
   return (
     <div className="workspace-grid">
       <form className="expense-form" onSubmit={(event) => event.preventDefault()}>
+        <section className="form-section template-section" aria-labelledby="template-title">
+          <div className="section-heading">
+            <div>
+              <span className="section-kicker">00</span>
+              <h2 id="template-title">사용 양식</h2>
+            </div>
+            <span className="section-note">지역·학교·연도별</span>
+          </div>
+          <div className="field-grid">
+            <label>
+              <span>사용 양식</span>
+              <select
+                aria-label="사용 양식"
+                value={templateId}
+                onChange={(event) => {
+                  const nextTemplate = getTemplateById(event.target.value);
+                  setValue("templateId", nextTemplate.id);
+                  setValue("school", nextTemplate.school);
+                  setSchoolMode(nextTemplate.school);
+                }}
+              >
+                {templateCatalog.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.region} · {template.school} · {template.year}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
+
         <section className="form-section" aria-labelledby="applicant-title">
           <div className="section-heading">
             <div>
@@ -233,11 +311,26 @@ export function ExpenseForm() {
           <div className="field-grid field-grid-three">
             <label>
               <span>시작일 *</span>
-              <input type="date" {...register("tripStart")} />
+              <input
+                type="date"
+                {...register("tripStart", {
+                  onChange: (event) =>
+                    setValue("routes.0.date", event.target.value),
+                })}
+              />
             </label>
             <label>
               <span>종료일 *</span>
-              <input type="date" {...register("tripEnd")} />
+              <input
+                type="date"
+                {...register("tripEnd", {
+                  onChange: (event) => {
+                    if (fields.length > 1) {
+                      setValue("routes.1.date", event.target.value);
+                    }
+                  },
+                })}
+              />
               <FieldError message={validationMessages.tripEnd} />
             </label>
             <label>
@@ -293,6 +386,7 @@ export function ExpenseForm() {
           register={register}
           remove={remove}
           travelType={travelType}
+          validationMessages={validationMessages}
         />
         <FieldError message={validationMessages.routes} />
 
@@ -302,7 +396,7 @@ export function ExpenseForm() {
               <span className="section-kicker">04</span>
               <h2 id="cost-title">비용과 첨부</h2>
             </div>
-            <span className="section-note">해당 항목만 입력</span>
+            <span className="section-note">선택 입력 · 없으면 비워두기</span>
           </div>
           <div className="cost-grid">
             <div className="cost-block">
@@ -314,7 +408,7 @@ export function ExpenseForm() {
                   min="0"
                   type="number"
                   {...register("lodging.paid", {
-                    setValueAs: (value) => (value === "" ? null : Number(value)),
+                    setValueAs: optionalAmount,
                   })}
                 />
               </label>
@@ -325,7 +419,7 @@ export function ExpenseForm() {
                   min="0"
                   type="number"
                   {...register("lodging.actual", {
-                    setValueAs: (value) => (value === "" ? null : Number(value)),
+                    setValueAs: optionalAmount,
                   })}
                 />
               </label>
@@ -343,7 +437,7 @@ export function ExpenseForm() {
                   min="0"
                   type="number"
                   {...register("meals.paid", {
-                    setValueAs: (value) => (value === "" ? null : Number(value)),
+                    setValueAs: optionalAmount,
                   })}
                 />
               </label>
@@ -354,7 +448,7 @@ export function ExpenseForm() {
                   min="0"
                   type="number"
                   {...register("meals.actual", {
-                    setValueAs: (value) => (value === "" ? null : Number(value)),
+                    setValueAs: optionalAmount,
                   })}
                 />
               </label>
@@ -392,12 +486,28 @@ export function ExpenseForm() {
           <h2>여비정산 신청서</h2>
           <dl>
             <div><dt>소속</dt><dd>{values.school || "—"}</dd></div>
+            <div><dt>직급(직위)</dt><dd>{values.position || "—"}</dd></div>
             <div><dt>성명</dt><dd>{values.name || "—"}</dd></div>
             <div><dt>일정</dt><dd>{values.tripStart || "—"} ~ {values.tripEnd || "—"}</dd></div>
             <div><dt>출장지</dt><dd>{values.destination || "—"}</dd></div>
             <div><dt>목적</dt><dd>{values.purpose || "—"}</dd></div>
+            <div><dt>출장유형</dt><dd>{travelTypeLabel(travelType)}</dd></div>
             <div><dt>운임 합계</dt><dd>{totalFare.toLocaleString("ko-KR")}원</dd></div>
+            <div><dt>숙박비</dt><dd>{expenseSummary(values.lodging)}</dd></div>
+            <div><dt>식비</dt><dd>{expenseSummary(values.meals)}</dd></div>
+            <div><dt>첨부서류</dt><dd>{attachmentSummary}</dd></div>
           </dl>
+          <section className="preview-routes" aria-label="이동 경로 미리보기">
+            <h3>이동 경로</h3>
+            {routeValues.map((route, index) => (
+              <div className="preview-route-row" key={index}>
+                <span>{route.date || "—"}</span>
+                <strong>{route.from || "—"} → {route.to || "—"}</strong>
+                <span>{route.transport || "—"}</span>
+                <span>{fareText(route.fare)}</span>
+              </div>
+            ))}
+          </section>
           <p className="privacy-note">
             입력 내용은 문서 생성에만 사용되며 서버에 보관하지 않습니다.
           </p>
@@ -407,7 +517,27 @@ export function ExpenseForm() {
             {status}
           </p>
         )}
-        <DownloadActions busy={busy} onDownload={download} />
+        <section className="download-review" aria-labelledby="download-review-title">
+          <h3 id="download-review-title">내려받기 전 확인</h3>
+          <ul>
+            {reviewItems.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+          <label className="review-confirm">
+            <input
+              checked={reviewConfirmed}
+              onChange={(event) =>
+                setConfirmedSignature(event.target.checked ? reviewSignature : null)
+              }
+              type="checkbox"
+            />
+            <span>입력 내용을 확인했습니다.</span>
+          </label>
+        </section>
+        <DownloadActions
+          busy={busy}
+          confirmed={reviewConfirmed}
+          onDownload={download}
+        />
         <button className="clear-button" onClick={clear} type="button">
           최근 학교·장소 지우기
         </button>
@@ -418,4 +548,75 @@ export function ExpenseForm() {
 
 function FieldError({ message }: { message?: string }) {
   return message ? <span className="field-error">{message}</span> : null;
+}
+
+function validationLabel(path: PropertyKey[]): string {
+  const key = path.join(".");
+  const labels: Record<string, string> = {
+    school: "소속",
+    position: "직급(직위)",
+    name: "성명",
+    tripStart: "시작일",
+    tripEnd: "종료일",
+    applicationDate: "작성일",
+    destination: "출장지",
+    purpose: "출장목적",
+    attachmentOther: "기타 첨부서류명",
+  };
+  if (labels[key]) return labels[key];
+
+  const routeMatch = key.match(/^routes\.(\d+)\.(.+)$/);
+  if (routeMatch) {
+    const routeNumber = Number(routeMatch[1]) + 1;
+    const routeLabels: Record<string, string> = {
+      date: "일자",
+      transport: "교통편",
+      from: "출발지",
+      to: "도착지",
+      grade: "등급",
+      fare: "금액",
+    };
+    return `경로 ${routeNumber} ${routeLabels[routeMatch[2]] ?? "입력 내용"}`;
+  }
+
+  return "입력 내용";
+}
+
+function travelTypeLabel(type: TravelType): string {
+  return {
+    public: "대중교통",
+    car: "자가용",
+    ride: "차량동승",
+    charter: "전세버스",
+  }[type];
+}
+
+function fareText(fare: unknown): string {
+  const formatted = formatFareForOutput(
+    fare === "미기재" || typeof fare === "number" ? fare : undefined,
+  );
+  return formatted ? `${formatted}원` : "";
+}
+
+function expenseSummary(
+  detail: { paid?: number | null; actual?: number | null; reason?: string } | undefined,
+): string {
+  if (!detail || (detail.paid == null && detail.actual == null && !detail.reason)) {
+    return "—";
+  }
+  const paid = detail.paid == null ? "—" : `${detail.paid.toLocaleString("ko-KR")}원`;
+  const actual = detail.actual == null ? "—" : `${detail.actual.toLocaleString("ko-KR")}원`;
+  return `지급 ${paid} / 실제 ${actual}${detail.reason ? ` / ${detail.reason}` : ""}`;
+}
+
+function hasExpense(
+  detail: { paid?: number | null; actual?: number | null; reason?: string } | undefined,
+): boolean {
+  return Boolean(
+    detail && (detail.paid != null || detail.actual != null || detail.reason),
+  );
+}
+
+function optionalAmount(value: unknown): number | null {
+  return value === "" || value == null ? null : Number(value);
 }

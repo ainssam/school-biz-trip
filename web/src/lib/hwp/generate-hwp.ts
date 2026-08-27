@@ -9,12 +9,15 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import fieldMap from "@/assets/templates/template-field-map.json";
 import {
   travelExpenseSchema,
-  type RouteInput,
   type TravelExpenseInput,
 } from "@/lib/travel-expense/schema";
+import { formatFareForOutput } from "@/lib/travel-expense/transform";
+import {
+  loadTemplateAssets,
+  type HwpFieldMap,
+} from "@/lib/templates/template-assets";
 
 type CellEdit = {
   section: number;
@@ -33,11 +36,6 @@ type PatchModule = {
     edits: CellEdit[],
   ) => Promise<unknown>;
 };
-
-const templatePath = path.join(
-  process.cwd(),
-  "src/assets/templates/travel-expense-template.hwp",
-);
 
 const runtimePath = path.join(
   process.cwd(),
@@ -71,10 +69,6 @@ function formatMoney(value: number | null): string {
   return value === null ? "" : value.toLocaleString("ko-KR");
 }
 
-function formatFare(value: RouteInput["fare"]): string {
-  return typeof value === "number" ? value.toLocaleString("ko-KR") : value;
-}
-
 function formatAttachments(input: TravelExpenseInput): string {
   const values: string[] = input.attachments
     .filter((attachment) => attachment !== "other")
@@ -85,7 +79,10 @@ function formatAttachments(input: TravelExpenseInput): string {
   return values.join(", ");
 }
 
-function buildCellEdits(input: TravelExpenseInput): CellEdit[] {
+function buildCellEdits(
+  input: TravelExpenseInput,
+  fieldMap: HwpFieldMap,
+): CellEdit[] {
   const table = fieldMap.table;
   const base = {
     section: table.section,
@@ -135,7 +132,7 @@ function buildCellEdits(input: TravelExpenseInput): CellEdit[] {
           from: route.from,
           to: route.to,
           grade: route.grade,
-          fare: formatFare(route.fare),
+          fare: formatFareForOutput(route.fare),
         }
       : { date: "", transport: "", from: "", to: "", grade: "", fare: "" };
 
@@ -169,15 +166,18 @@ export async function generateHwp(
   input: TravelExpenseInput,
 ): Promise<Uint8Array> {
   const parsed = travelExpenseSchema.parse(input);
+  const { hwpPath, hwpFieldMap } = await loadTemplateAssets(
+    parsed.templateId,
+  );
   const tempDirectory = await mkdtemp(
     path.join(tmpdir(), "travel-expense-hwp-"),
   );
   const outputPath = path.join(tempDirectory, "result.hwp");
 
   try {
-    await copyFile(templatePath, outputPath);
+    await copyFile(hwpPath, outputPath);
     const { patchCellsInPlace } = await loadPatcher();
-    await patchCellsInPlace(outputPath, buildCellEdits(parsed));
+    await patchCellsInPlace(outputPath, buildCellEdits(parsed, hwpFieldMap));
     return new Uint8Array(await readFile(outputPath));
   } finally {
     await rm(tempDirectory, { recursive: true, force: true });

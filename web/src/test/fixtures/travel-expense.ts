@@ -4,6 +4,7 @@ import type {
 } from "@/lib/travel-expense/schema";
 
 export const sampleTravelExpense: TravelExpenseInput = {
+  templateId: "bokja-2026",
   school: "가온고등학교",
   position: "교사",
   name: "테스트",

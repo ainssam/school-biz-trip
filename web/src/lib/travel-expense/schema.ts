@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  defaultTemplateId,
+  isTemplateId,
+} from "@/lib/templates/template-registry";
 
 export const travelTypes = ["car", "public", "ride", "charter"] as const;
 export const travelTypeSchema = z.enum(travelTypes);
@@ -12,8 +16,8 @@ export const fareSchema = z.union([
 export const routeSchema = z.object({
   date: z.iso.date(),
   transport: z.string().trim().min(1).max(12),
-  from: z.string().trim().min(1).max(16),
-  to: z.string().trim().min(1).max(16),
+  from: z.string().trim().min(1, "출발지를 입력해 주세요.").max(16),
+  to: z.string().trim().min(1, "도착지를 입력해 주세요.").max(16),
   grade: z.string().trim().min(1).max(10).default("제2호"),
   fare: fareSchema,
 });
@@ -38,14 +42,18 @@ export const attachmentSchema = z.enum([
 
 export const travelExpenseSchema = z
   .object({
+    templateId: z
+      .string()
+      .refine(isTemplateId, "등록되지 않은 문서 양식입니다.")
+      .default(defaultTemplateId),
     school: z.string().trim().min(2).max(20),
     position: z.string().trim().min(1).max(12),
-    name: z.string().trim().min(2).max(10),
+    name: z.string().trim().min(2, "성명을 입력해 주세요.").max(10),
     tripStart: z.iso.date(),
     tripEnd: z.iso.date(),
     applicationDate: z.iso.date(),
-    destination: z.string().trim().min(1).max(36),
-    purpose: z.string().trim().min(1).max(60),
+    destination: z.string().trim().min(1, "출장지를 입력해 주세요.").max(36),
+    purpose: z.string().trim().min(1, "출장목적을 입력해 주세요.").max(60),
     travelType: travelTypeSchema,
     routes: z.array(routeSchema).min(1).max(4),
     lodging: expenseDetailSchema.default({ paid: null, actual: null, reason: "" }),

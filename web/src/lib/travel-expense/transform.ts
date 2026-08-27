@@ -13,9 +13,21 @@ export function makeReturnRoute(route: RouteInput): RouteInput {
 
 export function sumFare(routes: FareOnly[]): number {
   return routes.reduce(
-    (sum, route) => sum + (typeof route.fare === "number" ? route.fare : 0),
+    (sum, route) =>
+      sum +
+      (typeof route.fare === "number" && Number.isFinite(route.fare)
+        ? route.fare
+        : 0),
     0,
   );
+}
+
+export function formatFareForOutput(
+  value: RouteInput["fare"] | undefined,
+): string {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value.toLocaleString("ko-KR")
+    : "";
 }
 
 export function makeDownloadFilename(

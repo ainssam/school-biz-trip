@@ -4,17 +4,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { pdfFieldMap, type PdfField } from "@/assets/templates/pdf-field-map";
+import type { PdfField } from "@/assets/templates/pdf-field-map";
 import {
   travelExpenseSchema,
-  type RouteInput,
   type TravelExpenseInput,
 } from "@/lib/travel-expense/schema";
-
-const templatePath = path.join(
-  process.cwd(),
-  "src/assets/templates/travel-expense-template.pdf",
-);
+import { formatFareForOutput } from "@/lib/travel-expense/transform";
+import { loadTemplateAssets } from "@/lib/templates/template-assets";
 
 const fontPath = path.join(
   process.cwd(),
@@ -47,10 +43,6 @@ function formatRouteDate(value: string): string {
 
 function formatMoney(value: number | null): string {
   return value === null ? "" : value.toLocaleString("ko-KR");
-}
-
-function formatFare(value: RouteInput["fare"]): string {
-  return typeof value === "number" ? value.toLocaleString("ko-KR") : value;
 }
 
 function formatAttachments(input: TravelExpenseInput): string {
@@ -98,8 +90,11 @@ export async function generatePdf(
   input: TravelExpenseInput,
 ): Promise<Uint8Array> {
   const parsed = travelExpenseSchema.parse(input);
+  const { pdfPath, pdfFieldMap } = await loadTemplateAssets(
+    parsed.templateId,
+  );
   const [templateBytes, fontBytes] = await Promise.all([
-    readFile(templatePath),
+    readFile(pdfPath),
     readFile(fontPath),
   ]);
   const document = await PDFDocument.load(new Uint8Array(templateBytes));
@@ -136,7 +131,7 @@ export async function generatePdf(
     drawValue(page, font, field.from, route.from);
     drawValue(page, font, field.to, route.to);
     drawValue(page, font, field.grade, route.grade);
-    drawValue(page, font, field.fare, formatFare(route.fare));
+    drawValue(page, font, field.fare, formatFareForOutput(route.fare));
   }
 
   drawValue(

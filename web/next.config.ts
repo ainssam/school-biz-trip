@@ -4,10 +4,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/generate/hwp": [
       "./vendor/claw-hwp/**/*",
-      "./src/assets/templates/travel-expense-template.hwp",
+      "./src/assets/templates/**/*",
     ],
     "/api/generate/pdf": [
-      "./src/assets/templates/travel-expense-template.pdf",
+      "./src/assets/templates/**/*",
       "./src/assets/fonts/NanumMyeongjo-Regular.ttf",
     ],
   },

@@ -37,6 +37,10 @@ describe("출장 경로 변환", () => {
     ).toBe(7000);
   });
 
+  it("비어 있거나 잘못된 숫자 운임은 합계에서 제외한다", () => {
+    expect(sumFare([{ fare: Number.NaN }, { fare: 3500 }])).toBe(3500);
+  });
+
   it("Windows 금지문자를 제거한 파일명을 만든다", () => {
     expect(
       makeDownloadFilename(

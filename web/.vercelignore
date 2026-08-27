@@ -1,0 +1,11 @@
+node_modules
+.next
+test-results
+tmp
+output
+*.png
+!src/app/icon.png
+design-qa.md
+e2e
+playwright.config.ts
+vitest.config.mts

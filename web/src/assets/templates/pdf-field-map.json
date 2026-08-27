@@ -1,0 +1,51 @@
+{
+  "school": { "x": 103, "y": 658, "width": 195, "fontSize": 10, "align": "center" },
+  "position": { "x": 340, "y": 658, "width": 92, "fontSize": 10, "align": "center" },
+  "name": { "x": 471, "y": 658, "width": 65, "fontSize": 10, "align": "center" },
+  "schedule": { "x": 183, "y": 634, "width": 352, "fontSize": 10, "align": "center" },
+  "destination": { "x": 186, "y": 617, "width": 346, "fontSize": 10, "align": "left" },
+  "purpose": { "x": 186, "y": 599, "width": 346, "fontSize": 10, "align": "left" },
+  "lodgingPaid": { "x": 182, "y": 566, "width": 57, "fontSize": 10, "align": "center" },
+  "lodgingActual": { "x": 290, "y": 566, "width": 57, "fontSize": 10, "align": "center" },
+  "lodgingReason": { "x": 418, "y": 566, "width": 117, "fontSize": 10, "align": "center" },
+  "mealsPaid": { "x": 182, "y": 527, "width": 57, "fontSize": 10, "align": "center" },
+  "mealsActual": { "x": 290, "y": 527, "width": 57, "fontSize": 10, "align": "center" },
+  "mealsReason": { "x": 418, "y": 527, "width": 117, "fontSize": 10, "align": "center" },
+  "routes": [
+    {
+      "date": { "x": 102, "y": 470, "width": 79, "fontSize": 10, "align": "center" },
+      "transport": { "x": 182, "y": 470, "width": 57, "fontSize": 10, "align": "center" },
+      "from": { "x": 240, "y": 470, "width": 49, "fontSize": 10, "align": "center" },
+      "to": { "x": 290, "y": 470, "width": 57, "fontSize": 10, "align": "center" },
+      "grade": { "x": 349, "y": 470, "width": 68, "fontSize": 10, "align": "center" },
+      "fare": { "x": 418, "y": 470, "width": 118, "fontSize": 10, "align": "center" }
+    },
+    {
+      "date": { "x": 102, "y": 447, "width": 79, "fontSize": 10, "align": "center" },
+      "transport": { "x": 182, "y": 447, "width": 57, "fontSize": 10, "align": "center" },
+      "from": { "x": 240, "y": 447, "width": 49, "fontSize": 10, "align": "center" },
+      "to": { "x": 290, "y": 447, "width": 57, "fontSize": 10, "align": "center" },
+      "grade": { "x": 349, "y": 447, "width": 68, "fontSize": 10, "align": "center" },
+      "fare": { "x": 418, "y": 447, "width": 118, "fontSize": 10, "align": "center" }
+    },
+    {
+      "date": { "x": 102, "y": 424, "width": 79, "fontSize": 10, "align": "center" },
+      "transport": { "x": 182, "y": 424, "width": 57, "fontSize": 10, "align": "center" },
+      "from": { "x": 240, "y": 424, "width": 49, "fontSize": 10, "align": "center" },
+      "to": { "x": 290, "y": 424, "width": 57, "fontSize": 10, "align": "center" },
+      "grade": { "x": 349, "y": 424, "width": 68, "fontSize": 10, "align": "center" },
+      "fare": { "x": 418, "y": 424, "width": 118, "fontSize": 10, "align": "center" }
+    },
+    {
+      "date": { "x": 102, "y": 401, "width": 79, "fontSize": 10, "align": "center" },
+      "transport": { "x": 182, "y": 401, "width": 57, "fontSize": 10, "align": "center" },
+      "from": { "x": 240, "y": 401, "width": 49, "fontSize": 10, "align": "center" },
+      "to": { "x": 290, "y": 401, "width": 57, "fontSize": 10, "align": "center" },
+      "grade": { "x": 349, "y": 401, "width": 68, "fontSize": 10, "align": "center" },
+      "fare": { "x": 418, "y": 401, "width": 118, "fontSize": 10, "align": "center" }
+    }
+  ],
+  "attachments": { "x": 65, "y": 302, "width": 465, "fontSize": 10, "align": "left" },
+  "applicationDate": { "x": 205, "y": 264, "width": 185, "fontSize": 10, "align": "center" },
+  "signature": { "x": 265, "y": 206, "width": 270, "fontSize": 10, "align": "center" }
+}

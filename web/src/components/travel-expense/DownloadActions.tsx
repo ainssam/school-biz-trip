@@ -1,14 +1,15 @@
 type DownloadActionsProps = {
   busy: "hwp" | "pdf" | null;
+  confirmed: boolean;
   onDownload: (format: "hwp" | "pdf") => void;
 };
 
-export function DownloadActions({ busy, onDownload }: DownloadActionsProps) {
+export function DownloadActions({ busy, confirmed, onDownload }: DownloadActionsProps) {
   return (
     <div className="download-actions">
       <button
         className="button button-primary"
-        disabled={busy !== null}
+        disabled={busy !== null || !confirmed}
         onClick={() => onDownload("hwp")}
         type="button"
       >
@@ -16,7 +17,7 @@ export function DownloadActions({ busy, onDownload }: DownloadActionsProps) {
       </button>
       <button
         className="button button-secondary"
-        disabled={busy !== null}
+        disabled={busy !== null || !confirmed}
         onClick={() => onDownload("pdf")}
         type="button"
       >

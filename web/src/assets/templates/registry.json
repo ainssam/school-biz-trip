@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "defaultTemplateId": "bokja-2026",
+  "templates": [
+    {
+      "id": "bokja-2026",
+      "label": "복자여자고등학교 2026",
+      "region": "충청남도",
+      "school": "복자여자고등학교",
+      "year": 2026,
+      "description": "복자여자고등학교 별지 제3호서식 기반 여비정산 신청서",
+      "files": {
+        "hwp": "travel-expense-template.hwp",
+        "pdf": "travel-expense-template.pdf",
+        "hwpFieldMap": "template-field-map.json",
+        "pdfFieldMap": "pdf-field-map.json"
+      }
+    }
+  ]
+}
