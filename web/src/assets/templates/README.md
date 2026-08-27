@@ -51,3 +51,5 @@ templates/
 - 양식의 표·여백·고정 문구는 수정하지 않고 값이 들어갈 위치만 기록합니다.
 
 현재 `bokja-2026` 항목이 실제 동작 예시입니다.
+
+Codex나 Claude에 추가 작업을 요청하려면 저장소 루트의 [`AI_TEMPLATE_PROMPT.md`](../../../../AI_TEMPLATE_PROMPT.md)를 사용합니다.
