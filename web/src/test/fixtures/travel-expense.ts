@@ -1,4 +1,7 @@
-import type { TravelExpenseInput } from "@/lib/travel-expense/schema";
+import type {
+  TravelExpenseInput,
+  TravelType,
+} from "@/lib/travel-expense/schema";
 
 export const sampleTravelExpense: TravelExpenseInput = {
   school: "가온고등학교",
@@ -25,3 +28,26 @@ export const sampleTravelExpense: TravelExpenseInput = {
   attachments: ["rail"],
   attachmentOther: "",
 };
+
+export function makeSampleTravelExpense(
+  travelType: TravelType,
+): TravelExpenseInput {
+  const transport = {
+    public: "철도",
+    car: "자가용",
+    ride: "차량동승",
+    charter: "전세버스",
+  }[travelType];
+
+  return {
+    ...sampleTravelExpense,
+    travelType,
+    routes: sampleTravelExpense.routes.map((route) => ({
+      ...route,
+      transport,
+      fare: travelType === "public" ? route.fare : "미기재",
+    })),
+    attachments:
+      travelType === "public" ? ["rail"] : travelType === "car" ? ["fuel"] : [],
+  };
+}

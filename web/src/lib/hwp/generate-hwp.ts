@@ -155,7 +155,14 @@ function buildCellEdits(input: TravelExpenseInput): CellEdit[] {
 }
 
 async function loadPatcher(): Promise<PatchModule> {
-  return (await import(pathToFileURL(runtimePath).href)) as PatchModule;
+  if (process.env.VITEST) {
+    return (await import(pathToFileURL(runtimePath).href)) as PatchModule;
+  }
+  const importAtRuntime = new Function(
+    "specifier",
+    "return import(specifier)",
+  ) as (specifier: string) => Promise<PatchModule>;
+  return importAtRuntime(pathToFileURL(runtimePath).href);
 }
 
 export async function generateHwp(
