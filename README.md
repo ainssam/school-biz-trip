@@ -24,6 +24,43 @@ web/src/assets/templates/
 
 Codex·Claude에 새 학교 템플릿 제작을 요청할 때는 [`AI_TEMPLATE_PROMPT.md`](AI_TEMPLATE_PROMPT.md)의 준비 자료, 입력 순서와 복사용 프롬프트를 사용합니다.
 
+### Codex·Claude에 전달하는 순서
+
+1. 이 GitHub 저장소 링크
+2. 개인정보가 없는 빈 HWP/HWPX
+3. 원본에서 저장한 PDF
+4. 작성요령
+5. 학교와 양식 정보
+6. GitHub 반영 및 운영 배포 여부
+
+아래 내용을 작성해 파일과 함께 전달합니다.
+
+```text
+학교명:
+지역/교육청:
+사용 연도:
+양식 이름 또는 별지 번호:
+
+제공 파일:
+- 빈 HWP/HWPX:
+- 빈 PDF:
+- 작성요령:
+- 개인정보를 가린 작성 예시(선택):
+
+필요한 다운로드 형식:
+양식에서 달라지는 부분:
+특별한 입력 규칙:
+필수 입력 항목:
+입력하지 않아도 되는 항목:
+자동으로 연결할 항목:
+
+GitHub 반영: 예 / 아니오
+운영 사이트 배포: 예 / 아니오
+기타 요청:
+```
+
+전체 작업 규칙과 완료 기준은 [`AI_TEMPLATE_PROMPT.md`](AI_TEMPLATE_PROMPT.md)에서 복사할 수 있습니다.
+
 ## HWP 생성 엔진
 
 HWP 구조 분석과 필드 위치 확인에는 오픈소스 [`claw-hwp`](https://github.com/DoHyun468/claw-hwp)를 사용했습니다. 배포된 웹앱은 외부 MCP 서버를 호출하지 않고, `claw-hwp 1.5.58`의 `cell-patch` 런타임을 프로젝트에 포함해 Vercel 서버에서 직접 실행합니다. 따라서 사용자는 별도로 MCP를 설치할 필요가 없습니다.
