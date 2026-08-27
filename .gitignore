@@ -1,0 +1,11 @@
+*.hwp
+*.hwpx
+*.pdf
+!web/src/assets/templates/travel-expense-template.hwp
+!web/src/assets/templates/travel-expense-template.pdf
+web/.next/
+web/node_modules/
+web/test-results/
+web/playwright-report/
+web/coverage/
+.env*
