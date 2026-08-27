@@ -9,4 +9,5 @@ web/test-results/
 web/playwright-report/
 web/coverage/
 tmp/
+/artifacts/qa/renders/
 .env*
