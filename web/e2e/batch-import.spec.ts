@@ -120,6 +120,24 @@ test("출장 건 목록을 데스크톱 4열·모바일 1열로 배치한다", a
     .toBe(2);
 });
 
+test("파일 선택 버튼으로 엑셀 파일을 불러온다", async ({ page }) => {
+  await page.goto("/");
+  const chooserPromise = page.waitForEvent("filechooser");
+  await page
+    .getByRole("button", { name: "엑셀·PDF 파일 선택" })
+    .click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: "synthetic.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: syntheticWorkbook(),
+  });
+
+  await expect(page.getByRole("button", { name: /출장 건 1/ })).toBeVisible();
+  await expect(page.getByText("출장 2건을 인식했습니다.")).toBeVisible();
+});
+
 test("여러 시트의 출장 건을 한 다중 페이지 PDF로 내려받는다", async ({
   page,
 }) => {

@@ -168,16 +168,44 @@ input::placeholder { color: #94a3b8; }
 input[readonly] { background: var(--color-surface); color: var(--color-muted); }
 
 .import-dropzone {
-  display: grid;
-  gap: 7px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 18px;
   border: 1px dashed #94a3b8;
   border-radius: 8px;
   background: #f8fbff;
+}
+.import-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.import-file-button {
+  display: inline-flex;
+  min-height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 18px;
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
   cursor: pointer;
 }
-.import-dropzone > span { margin: 0; color: var(--color-primary-dark); font-size: 14px; }
-.import-dropzone input { min-height: 38px; padding: 6px; background: var(--color-paper); }
+.import-file-button:hover:not(:disabled) { background: var(--color-primary-dark); }
+.import-file-button:focus-visible { outline: 3px solid rgb(14 165 233 / 24%); outline-offset: 2px; }
+.import-file-button:disabled { cursor: wait; opacity: .7; }
+.import-file-help { display: grid; gap: 3px; min-width: 0; }
+.import-file-help strong { color: var(--color-text); font-size: 13px; }
 .import-dropzone small, .import-privacy { color: var(--color-muted); font-size: 11px; }
 .import-privacy { margin: 10px 0 0; }
 .candidate-list {
@@ -465,6 +493,8 @@ input[readonly] { background: var(--color-surface); color: var(--color-muted); }
   .field-grid-three, .cost-grid { grid-template-columns: 1fr; }
   .field-span-two, .field-span-three { grid-column: auto; }
   .route-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .import-dropzone { align-items: stretch; flex-direction: column; }
+  .import-file-button { width: 100%; }
   .download-actions { grid-template-columns: 1fr; }
   .candidate-list { grid-template-columns: 1fr; }
   .guide-intro { grid-template-columns: 1fr; gap: 16px; padding: 24px 20px; }

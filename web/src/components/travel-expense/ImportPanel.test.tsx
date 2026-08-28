@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { readTripFiles } from "@/lib/import/read-files.client";
 import type { TripImportCandidate } from "@/lib/import/types";
 import { ImportPanel } from "./ImportPanel";
 
@@ -45,6 +46,23 @@ function Harness() {
 }
 
 describe("출장 신청서 불러오기", () => {
+  it("눈에 띄는 파일 선택 버튼으로 같은 파일을 다시 불러올 수 있다", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const input = screen.getByLabelText("출장 신청서 파일");
+    const file = new File(["xlsx"], "synthetic.xlsx");
+
+    expect(
+      screen.getByRole("button", { name: "엑셀·PDF 파일 선택" }),
+    ).toBeVisible();
+    await user.upload(input, file);
+    await screen.findByText("출장 2건을 인식했습니다.");
+    await user.upload(input, file);
+
+    expect(readTripFiles).toHaveBeenCalledTimes(2);
+    expect(input).toHaveValue("");
+  });
+
   it("여러 파일을 분석하고 인식한 출장 건 수를 알린다", async () => {
     const user = userEvent.setup();
     render(<Harness />);
