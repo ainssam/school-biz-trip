@@ -1,10 +1,13 @@
 import { ZodError } from "zod";
 import {
   DocumentValueTooLongError,
-  generatePdf,
+  generatePdfBatch,
 } from "@/lib/pdf/generate-pdf";
-import { travelExpenseSchema } from "@/lib/travel-expense/schema";
-import { makeDownloadFilename } from "@/lib/travel-expense/transform";
+import { parseTravelExpenseBatch } from "@/lib/travel-expense/batch-schema";
+import {
+  makeBatchDownloadFilename,
+  makeDownloadFilename,
+} from "@/lib/travel-expense/transform";
 
 export const runtime = "nodejs";
 
@@ -14,9 +17,12 @@ function downloadDisposition(filename: string): string {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const input = travelExpenseSchema.parse(await request.json());
-    const bytes = await generatePdf(input);
-    const filename = makeDownloadFilename(input, "pdf");
+    const body = await request.json();
+    const inputs = parseTravelExpenseBatch(body);
+    const bytes = await generatePdfBatch(inputs);
+    const filename = Array.isArray(body)
+      ? makeBatchDownloadFilename(inputs.length, "pdf")
+      : makeDownloadFilename(inputs[0], "pdf");
 
     return new Response(Buffer.from(bytes), {
       headers: {

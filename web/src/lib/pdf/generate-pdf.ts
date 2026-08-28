@@ -10,7 +10,10 @@ import {
   type TravelExpenseInput,
 } from "@/lib/travel-expense/schema";
 import { formatFareForOutput } from "@/lib/travel-expense/transform";
-import { loadTemplateAssets } from "@/lib/templates/template-assets";
+import {
+  loadTemplateAssets,
+  type PdfFieldMap,
+} from "@/lib/templates/template-assets";
 
 const fontPath = path.join(
   process.cwd(),
@@ -86,24 +89,12 @@ function drawValue(
   });
 }
 
-export async function generatePdf(
-  input: TravelExpenseInput,
-): Promise<Uint8Array> {
-  const parsed = travelExpenseSchema.parse(input);
-  const { pdfPath, pdfFieldMap } = await loadTemplateAssets(
-    parsed.templateId,
-  );
-  const [templateBytes, fontBytes] = await Promise.all([
-    readFile(pdfPath),
-    readFile(fontPath),
-  ]);
-  const document = await PDFDocument.load(new Uint8Array(templateBytes));
-  document.registerFontkit(fontkit);
-  const font = await document.embedFont(new Uint8Array(fontBytes), {
-    subset: false,
-  });
-  const page = document.getPage(0);
-
+function drawExpensePage(
+  page: PDFPage,
+  font: PDFFont,
+  pdfFieldMap: PdfFieldMap,
+  parsed: TravelExpenseInput,
+): void {
   drawValue(page, font, pdfFieldMap.school, parsed.school);
   drawValue(page, font, pdfFieldMap.position, parsed.position);
   drawValue(page, font, pdfFieldMap.name, parsed.name);
@@ -152,6 +143,47 @@ export async function generatePdf(
     pdfFieldMap.signature,
     `신 청 인      성 명      ${parsed.name} (인)`,
   );
+}
+
+export async function generatePdfBatch(
+  inputs: TravelExpenseInput[],
+): Promise<Uint8Array> {
+  const parsedItems = inputs.map((input) => travelExpenseSchema.parse(input));
+  if (parsedItems.length === 0) {
+    throw new Error("출장 신청서가 한 건 이상 필요합니다.");
+  }
+  if (
+    parsedItems.some(
+      (input) => input.templateId !== parsedItems[0].templateId,
+    )
+  ) {
+    throw new Error("한 문서에서는 같은 출력 양식을 사용해 주세요.");
+  }
+  const { pdfPath, pdfFieldMap } = await loadTemplateAssets(
+    parsedItems[0].templateId,
+  );
+  const [templateBytes, fontBytes] = await Promise.all([
+    readFile(pdfPath),
+    readFile(fontPath),
+  ]);
+  const template = await PDFDocument.load(new Uint8Array(templateBytes));
+  const document = await PDFDocument.create();
+  document.registerFontkit(fontkit);
+  const font = await document.embedFont(new Uint8Array(fontBytes), {
+    subset: false,
+  });
+
+  for (const parsed of parsedItems) {
+    const [page] = await document.copyPages(template, [0]);
+    document.addPage(page);
+    drawExpensePage(page, font, pdfFieldMap, parsed);
+  }
 
   return document.save({ useObjectStreams: false });
+}
+
+export async function generatePdf(
+  input: TravelExpenseInput,
+): Promise<Uint8Array> {
+  return generatePdfBatch([input]);
 }

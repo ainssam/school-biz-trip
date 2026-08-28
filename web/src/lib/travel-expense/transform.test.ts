@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  makeBatchDownloadFilename,
   makeDownloadFilename,
   makeReturnRoute,
   sumFare,
@@ -48,6 +49,12 @@ describe("출장 경로 변환", () => {
         "hwp",
       ),
     ).toBe("여비정산신청서_홍길동_2026-08-27.hwp");
+  });
+
+  it("여러 출장 건 파일명에 건수를 표시한다", () => {
+    expect(makeBatchDownloadFilename(4, "pdf")).toBe(
+      "여비정산신청서_일괄_4건.pdf",
+    );
   });
 });
 

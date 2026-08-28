@@ -19,6 +19,7 @@ import {
 } from "@/lib/travel-expense/schema";
 import {
   formatFareForOutput,
+  makeBatchDownloadFilename,
   makeDownloadFilename,
   makeReturnRoute,
   sumFare,
@@ -166,20 +167,66 @@ export function ExpenseForm() {
 
   async function download(format: "hwp" | "pdf") {
     setStatus("");
-    const parsed = travelExpenseSchema.safeParse(getValues());
-    if (!parsed.success) {
+    const batchMode = queue.drafts.length > 0;
+    const currentValues = getValues();
+    const requestedDrafts = batchMode
+      ? queue.drafts
+          .filter((draft) => draft.included)
+          .map((draft) =>
+            draft.candidate.id === queue.selectedId
+              ? currentValues
+              : draft.values,
+          )
+      : [currentValues];
+    const parsedResults = requestedDrafts.map((draft) =>
+      travelExpenseSchema.safeParse(draft),
+    );
+    const failedIndexes = parsedResults.flatMap((result, index) =>
+      result.success ? [] : [index],
+    );
+    if (failedIndexes.length > 0 || requestedDrafts.length === 0) {
       const messages: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const key = issue.path.join(".");
-        if (!messages[key]) messages[key] = issue.message;
+      const currentIndex = batchMode
+        ? queue.drafts
+            .filter((draft) => draft.included)
+            .findIndex((draft) => draft.candidate.id === queue.selectedId)
+        : 0;
+      const currentResult = parsedResults[currentIndex];
+      if (currentResult && !currentResult.success) {
+        for (const issue of currentResult.error.issues) {
+          const key = issue.path.join(".");
+          if (!messages[key]) messages[key] = issue.message;
+        }
       }
       setValidationMessages(messages);
-      const labels = Array.from(
-        new Set(parsed.error.issues.map((issue) => validationLabel(issue.path))),
-      );
-      setStatus(`다음 필수 입력을 확인해 주세요: ${labels.join(", ")}`);
+      if (requestedDrafts.length === 0) {
+        setStatus("출력에 포함할 출장 건을 한 건 이상 선택해 주세요.");
+      } else if (batchMode) {
+        setStatus(
+          `직접 입력이 필요한 출장 건: ${failedIndexes
+            .map((index) => index + 1)
+            .join(", ")}번`,
+        );
+      } else {
+        const failed = parsedResults[0];
+        const labels =
+          failed && !failed.success
+            ? Array.from(
+                new Set(
+                  failed.error.issues.map((issue) =>
+                    validationLabel(issue.path),
+                  ),
+                ),
+              )
+            : [];
+        setStatus(`다음 필수 입력을 확인해 주세요: ${labels.join(", ")}`);
+      }
       return;
     }
+    const parsedItems = parsedResults.map((result) => {
+      if (!result.success) throw new Error("unreachable");
+      return result.data;
+    });
 
     setValidationMessages({});
     setBusy(format);
@@ -188,17 +235,21 @@ export function ExpenseForm() {
       const response = await fetch(`/api/generate/${format}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
+        body: JSON.stringify(batchMode ? parsedItems : parsedItems[0]),
       });
       if (!response.ok) throw new Error("generation-failed");
       downloadBlob(
         await response.blob(),
-        makeDownloadFilename(parsed.data, format),
+        batchMode
+          ? makeBatchDownloadFilename(parsedItems.length, format)
+          : makeDownloadFilename(parsedItems[0], format),
       );
-      remember(parsed.data.school, [
-        ...parsed.data.routes.flatMap((route) => [route.from, route.to]),
-        parsed.data.destination,
-      ]);
+      for (const parsed of parsedItems) {
+        remember(parsed.school, [
+          ...parsed.routes.flatMap((route) => [route.from, route.to]),
+          parsed.destination,
+        ]);
+      }
       setStatus(`${format.toUpperCase()} 파일을 내려받았습니다.`);
     } catch {
       setStatus(

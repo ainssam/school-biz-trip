@@ -42,3 +42,10 @@ export function makeDownloadFilename(
     .trim();
   return `여비정산신청서_${safeName || "신청인"}_${input.tripStart}.${extension}`;
 }
+
+export function makeBatchDownloadFilename(
+  count: number,
+  extension: "hwp" | "pdf",
+): string {
+  return `여비정산신청서_일괄_${count}건.${extension}`;
+}
