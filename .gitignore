@@ -12,5 +12,6 @@ web/comparison-*.png
 web/implementation-*.png
 web/design-qa.md
 tmp/
+.worktrees/
 /artifacts/qa/renders/
 .env*
