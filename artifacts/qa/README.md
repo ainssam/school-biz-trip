@@ -4,10 +4,10 @@
 
 ## 자동 검증
 
-- Vitest: 9개 파일, 18개 테스트 통과
+- Vitest: 12개 파일, 34개 테스트 통과
 - ESLint: 오류·경고 없음
 - Next.js 프로덕션 빌드: 통과
-- Playwright: 데스크톱·모바일 HWP/PDF 다운로드 4개 시나리오 통과
+- Playwright: 로컬 데스크톱·모바일 HWP/PDF 다운로드 10개 시나리오 통과
 - agent-browser: 본문 있음, Next.js 오류 오버레이 없음, 핵심 입력·다운로드 요소 확인
 
 ## 문서 생성
@@ -28,10 +28,12 @@
 ## Vercel 배포 상태
 
 - Vercel CLI 54.15.1 설치 확인
-- 로컬 Vercel 인증 토큰 없음
-- 무로그인 배포 엔드포인트가 더 이상 Preview를 생성하지 않고 CLI 사용 안내만 반환함
-- CLI 로그인에 필요한 Vercel OIDC 주소 연결이 반복적으로 `ECONNRESET`되어 인증을 완료하지 못함
-- 운영 URL 브라우저 재현에서 PDF는 200이었지만 HWP는 400(`입력 내용을 확인해 주세요.`)이었음
-- 운영 HTML은 템플릿 선택 UI와 `claw-hwp` 푸터 표기가 없는 이전 화면이며, HWP 요청에도 `templateId`가 없었음
-- 저장소의 최신 소스는 `templateId`를 기본값과 함께 요청에 포함하고 이 동작을 회귀 테스트함
-- 최신 커밋을 `main`에 반영해 Vercel Git 배포를 재트리거해야 함
+- 원인 1: 이전 운영 화면이 템플릿 적용 전 배포본이라 HWP 요청에 `templateId`가 없었음
+- 원인 2: Vercel의 `/var/task`에서 vendored `rhwp.js`를 ES 모듈로 해석할 `package.json`이 없어 HWP 함수가 실패함
+- 원인 3: 원격 응답 뒤 Blob URL을 클릭 직후 해제해 브라우저 다운로드 이벤트가 시작되기 전에 사라질 수 있었음
+- 수정 커밋: `6cb4871`(rhwp ES 모듈 표기), `5d8a5dd`(Blob URL 유지·정리 지연)
+- 운영 배포: `dpl_95mLT6QVHTvJUHwM69iZbrdfR4eF`, 상태 `Ready`
+- 운영 URL: <https://school-biz-trip.vercel.app>
+- 운영 HWP API: HTTP 200, `application/x-hwp`, `private, no-store`, 39,424 bytes, HWP 매직 바이트 확인
+- 운영 브라우저: 데스크톱·390px 모바일에서 `여비정산신청서_테스트교사_2026-08-28.hwp` 다운로드 성공, 실패 없음
+- 운영 런타임 로그: 최신 HWP 요청 HTTP 200, ES 모듈 경고 없음
