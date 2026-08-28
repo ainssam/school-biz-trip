@@ -44,7 +44,13 @@
 //   0x47 CTRL_HEADER       a control inside a paragraph
 //   0x48 LIST_HEADER       starts a table cell (level 2 when inside table)
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  renameSync,
+  unlinkSync,
+} from 'node:fs';
 import { inflateRawSync, deflateRawSync, constants } from 'node:zlib';
 import path from 'node:path';
 import url from 'node:url';
@@ -1421,6 +1427,64 @@ export async function patchCellsInPlace(filePath, edits) {
     summary.mode = 'sheetjs-fallback';
     return summary;
   }
+}
+
+// Duplicate the template's first body section so each batch item can be
+// patched independently. This operates only on the caller's temporary copy.
+// The original Section0 compressed bytes are copied verbatim; DocInfo's
+// DOCUMENT_PROPERTIES section count is the only non-body value changed.
+export async function duplicateSectionsInPlace(filePath, sectionCount) {
+  if (
+    !Number.isInteger(sectionCount) ||
+    sectionCount < 1 ||
+    sectionCount > 40
+  ) {
+    throw new Error('sectionCount must be an integer from 1 through 40');
+  }
+
+  const CFB = await import(
+    url.pathToFileURL(path.join(__dirname, 'vendor/cfb/cfb.js')).href
+  );
+  const cfb = CFB.parse(readFileSync(filePath));
+  const source = CFB.find(cfb, 'Root Entry/BodyText/Section0');
+  if (!source?.content) throw new Error('stream not found: BodyText/Section0');
+
+  for (let index = 1; index <= 40; index += 1) {
+    if (CFB.find(cfb, `Root Entry/BodyText/Section${index}`)) {
+      CFB.utils.cfb_del(cfb, `Root Entry/BodyText/Section${index}`);
+    }
+  }
+  for (let index = 1; index < sectionCount; index += 1) {
+    CFB.utils.cfb_add(
+      cfb,
+      `BodyText/Section${index}`,
+      Buffer.from(source.content),
+    );
+  }
+
+  const docInfo = CFB.find(cfb, 'Root Entry/DocInfo');
+  if (!docInfo?.content) throw new Error('stream not found: DocInfo');
+  const rawDocInfo = Buffer.from(inflateRawSync(Buffer.from(docInfo.content)));
+  const documentProperties = Array.from(walkRecords(rawDocInfo)).find(
+    (record) => record.tag === 0x10,
+  );
+  if (!documentProperties || documentProperties.size < 2) {
+    throw new Error('DocInfo DOCUMENT_PROPERTIES record not found');
+  }
+  rawDocInfo.writeUInt16LE(sectionCount, documentProperties.dataOff);
+  const compressedDocInfo = deflateRawSync(rawDocInfo, { level: 9 });
+  docInfo.content = compressedDocInfo;
+  docInfo.size = compressedDocInfo.length;
+
+  const temporaryPath = `${filePath}.sections-${process.pid}-${Date.now()}.tmp`;
+  try {
+    writeFileSync(temporaryPath, CFB.write(cfb, { type: 'buffer' }));
+    renameSync(temporaryPath, filePath);
+  } catch (error) {
+    if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+    throw error;
+  }
+  return { sectionCount };
 }
 
 // ── replace_text raw-patch (Phase 1: equal-length only) ───────────────────
