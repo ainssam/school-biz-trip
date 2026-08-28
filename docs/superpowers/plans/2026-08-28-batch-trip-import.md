@@ -6,7 +6,7 @@
 
 **Architecture:** 원본 파일은 클라이언트 전용 어댑터에서 `TripImportCandidate[]`로 정규화하며 서버에 업로드하지 않는다. 화면은 후보를 `TravelExpenseDraftInput[]`로 보관하고 선택한 초안만 기존 폼으로 편집한다. 생성 API는 검증된 `TravelExpenseInput[]`를 받아 PDF 페이지 또는 HWP 섹션을 입력 순서대로 만든다.
 
-**Tech Stack:** Next.js 16.3.3, React 19.2.8, TypeScript, React Hook Form, Zod 4, Vitest, Testing Library, Playwright, ExcelJS 4.4.0, Mozilla PDF.js `pdfjs-dist` 6.2.108, pdf-lib 1.17.1, vendored claw-hwp CFB patcher
+**Tech Stack:** Next.js 16.3.3, React 19.2.8, TypeScript, React Hook Form, Zod 4, Vitest, Testing Library, Playwright, fflate 0.8.3 기반 XLSX ZIP/XML 읽기, Mozilla PDF.js `pdfjs-dist` 6.2.108, pdf-lib 1.17.1, vendored claw-hwp CFB patcher
 
 **Spec:** `docs/superpowers/specs/2026-08-28-batch-trip-import-design.md`
 
@@ -26,7 +26,7 @@
 
 - `web/src/lib/import/types.ts`: 인식 후보, 출처, 필드, 상태 타입
 - `web/src/lib/import/normalize.ts`: 문자열·날짜·라벨 정규화
-- `web/src/lib/import/xlsx.ts`: ExcelJS 워크북을 표/신청서 구조로 인식
+- `web/src/lib/import/xlsx.ts`: XLSX ZIP/XML을 표/신청서 구조로 인식
 - `web/src/lib/import/pdf.ts`: PDF.js 위치 텍스트를 페이지별 신청서로 인식
 - `web/src/lib/import/read-files.client.ts`: 확장자별 브라우저 파일 어댑터
 - `web/src/lib/travel-expense/draft.ts`: 부분 인식 결과와 편집 폼 사이의 빈 초안 변환
@@ -62,10 +62,10 @@ Run:
 
 ```powershell
 cd web
-npm install exceljs@4.4.0 pdfjs-dist@6.2.108
+npm install fflate@0.8.3 pdfjs-dist@6.2.108
 ```
 
-Expected: `package.json` contains exact compatible ranges selected by npm and `package-lock.json` resolves `exceljs` and `pdfjs-dist` without installing the unrelated `xlsx` package.
+Expected: `package.json` contains exact compatible ranges selected by npm and `package-lock.json` resolves `fflate` and `pdfjs-dist` without installing the unrelated `xlsx` or `exceljs` packages. `npm audit --omit=dev` reports zero vulnerabilities.
 
 - [ ] **Step 2: Write failing normalization tests**
 
@@ -159,17 +159,15 @@ Expected: normalization tests PASS.
 
 - [ ] **Step 1: Write failing workbook tests with synthetic data**
 
-Use `new Workbook()` and `workbook.xlsx.writeBuffer()` inside the test. Cover these literal cases in separate tests:
+Use `fflate.zipSync` with minimal workbook, relationship, shared-string, and worksheet XML entries inside the test. Cover these literal cases in separate tests:
 
 ```ts
 it("여러 표시 시트의 신청서를 시트별 출장 건으로 인식한다", async () => {
-  const workbook = new Workbook();
-  for (const [sheetName, person] of [["첫째", "가상교사A"], ["둘째", "가상교사B"]]) {
-    const sheet = workbook.addWorksheet(sheetName);
-    sheet.addRow(["직급", "성명", "출장목적", "출장기간", "출장지"]);
-    sheet.addRow(["교사", person, "합성 연수", "2026.08.27", "가상기관"]);
-  }
-  const result = await parseXlsxBuffer(await workbook.xlsx.writeBuffer(), "synthetic.xlsx");
+  const data = makeSyntheticXlsx([
+    { name: "첫째", rows: [["직급", "성명", "출장목적", "출장기간", "출장지"], ["교사", "가상교사A", "합성 연수", "2026.08.27", "가상기관"]] },
+    { name: "둘째", rows: [["직급", "성명", "출장목적", "출장기간", "출장지"], ["교사", "가상교사B", "합성 연수", "2026.08.27", "가상기관"]] },
+  ]);
+  const result = await parseXlsxBuffer(data.buffer, "synthetic.xlsx");
   expect(result.map((item) => item.values.name)).toEqual(["가상교사A", "가상교사B"]);
   expect(result.map((item) => item.source.sheetName)).toEqual(["첫째", "둘째"]);
 });
@@ -185,21 +183,22 @@ Expected: FAIL because `parseXlsxBuffer` does not exist.
 
 - [ ] **Step 3: Implement worksheet grid extraction**
 
-In `xlsx.ts`, load the browser buffer and convert each worksheet to a sparse grid without evaluating formulas:
+In `xlsx.ts`, unzip the browser buffer and convert each worksheet XML to a sparse grid without evaluating formulas:
 
 ```ts
-const workbook = new Workbook();
-await workbook.xlsx.load(data);
-const text = (cell: Cell): string => {
-  if (cell.value instanceof Date) return cell.value.toISOString().slice(0, 10);
-  if (typeof cell.value === "object" && cell.value && "result" in cell.value) {
-    return String(cell.value.result ?? "").trim();
-  }
-  return cell.text.trim();
-};
+const files = unzipSync(new Uint8Array(data));
+const xml = (path: string) => new DOMParser().parseFromString(
+  strFromU8(files[path]),
+  "application/xml",
+);
+const workbook = xml("xl/workbook.xml");
+const relationships = xml("xl/_rels/workbook.xml.rels");
+const sharedStrings = files["xl/sharedStrings.xml"]
+  ? readSharedStrings(xml("xl/sharedStrings.xml"))
+  : [];
 ```
 
-Keep each cell's row, column, text, merge master, and worksheet visibility. Never copy the workbook to disk.
+Resolve worksheet paths through workbook relationships rather than assuming sequential names. Keep each cell's row, column, text, cached formula result, merge master, number format, and worksheet visibility. Convert Excel serial dates only when the cell's style uses a date format. Never copy the workbook to disk.
 
 - [ ] **Step 4: Implement table and form detectors**
 
@@ -586,7 +585,7 @@ git commit -m "feat: generate batch trips as one hwp"
 
 - [ ] **Step 1: Write failing Playwright batch flow**
 
-Create synthetic XLSX bytes during the test with ExcelJS, upload through `setInputFiles`, assert two source records from two sheets, verify an unrecognized destination is blank, fill missing route fields manually, include both records, and download one PDF. Load the download with `pdf-lib` and assert two pages. Add a separate HWP download assertion for CFB magic and a nonzero file size.
+Create synthetic XLSX bytes during the test with the same test-only `fflate.zipSync` fixture builder, upload through `setInputFiles`, assert two source records from two sheets, verify an unrecognized destination is blank, fill missing route fields manually, include both records, and download one PDF. Load the download with `pdf-lib` and assert two pages. Add a separate HWP download assertion for CFB magic and a nonzero file size.
 
 - [ ] **Step 2: Run E2E and confirm RED before final UI wiring**
 
