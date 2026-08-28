@@ -215,37 +215,27 @@ export async function parsePdfBuffer(
     "pdfjs-dist/build/pdf.worker.min.mjs",
     import.meta.url,
   ).toString();
-  const document = await pdfjs.getDocument({ data: new Uint8Array(data) }).promise;
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(data) });
+  const document = await loadingTask.promise;
   const pages: PositionedPdfText[][] = [];
   try {
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
       const content = await page.getTextContent();
-      pages.push(
-        content.items
-          .filter(
-            (
-              item,
-            ): item is {
-              str: string;
-              transform: number[];
-              width: number;
-            } =>
-              "str" in item &&
-              Array.isArray(item.transform) &&
-              typeof item.width === "number",
-          )
-          .map((item) => ({
+      const positioned: PositionedPdfText[] = [];
+      for (const item of content.items) {
+        if (!("str" in item) || !item.str.trim()) continue;
+        positioned.push({
             text: item.str,
             x: item.transform[4],
             y: item.transform[5],
             width: item.width,
-          }))
-          .filter((item) => item.text.trim().length > 0),
-      );
+        });
+      }
+      pages.push(positioned);
     }
   } finally {
-    await document.destroy();
+    await loadingTask.destroy();
   }
   return parsePositionedPdfPages(pages, fileName);
 }

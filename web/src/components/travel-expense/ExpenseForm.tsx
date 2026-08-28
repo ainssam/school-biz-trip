@@ -3,11 +3,18 @@
 import { useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { DownloadActions } from "./DownloadActions";
+import { ImportCandidateList } from "./ImportCandidateList";
+import { ImportPanel } from "./ImportPanel";
 import { RouteEditor, transportFor } from "./RouteEditor";
 import { useRecentSuggestions } from "@/hooks/useRecentSuggestions";
+import { useTripDraftQueue } from "@/hooks/useTripDraftQueue";
+import type { TripImportCandidate } from "@/lib/import/types";
+import {
+  candidateToDraft,
+  type TravelExpenseDraftInput,
+} from "@/lib/travel-expense/draft";
 import {
   travelExpenseSchema,
-  type TravelExpenseInput,
   type TravelType,
 } from "@/lib/travel-expense/schema";
 import {
@@ -31,7 +38,7 @@ function today(): string {
   return local.toISOString().slice(0, 10);
 }
 
-function defaultValues(): TravelExpenseInput {
+function defaultValues(): TravelExpenseDraftInput {
   const date = today();
   return {
     templateId: defaultTemplateId,
@@ -73,6 +80,7 @@ const attachmentOptions = [
 
 export function ExpenseForm() {
   const { recent, remember, clear } = useRecentSuggestions();
+  const queue = useTripDraftQueue();
   const [schoolMode, setSchoolMode] = useState(defaultSchool);
   const [positionMode, setPositionMode] = useState("교사");
   const [busy, setBusy] = useState<"hwp" | "pdf" | null>(null);
@@ -82,8 +90,8 @@ export function ExpenseForm() {
     Record<string, string>
   >({});
 
-  const { control, register, getValues, setValue } =
-    useForm<TravelExpenseInput>({ defaultValues: defaultValues() });
+  const { control, register, getValues, reset, setValue } =
+    useForm<TravelExpenseDraftInput>({ defaultValues: defaultValues() });
   const { fields, append, remove } = useFieldArray({ control, name: "routes" });
   const values = useWatch({ control });
   const travelType = useWatch({ control, name: "travelType" }) ?? "public";
@@ -91,6 +99,50 @@ export function ExpenseForm() {
     useWatch({ control, name: "templateId" }) ?? defaultTemplateId;
   const routeValues = useWatch({ control, name: "routes" }) ?? [];
   const totalFare = sumFare(routeValues);
+
+  function syncSelectModes(next: TravelExpenseDraftInput) {
+    setSchoolMode(next.school === defaultSchool ? defaultSchool : "__other");
+    setPositionMode(
+      ["교사", "교감", "교장", "교육행정직"].includes(next.position)
+        ? next.position
+        : "__other",
+    );
+  }
+
+  function importCandidates(candidates: TripImportCandidate[]) {
+    queue.appendCandidates(candidates, templateId);
+    const first =
+      candidates.find((candidate) => candidate.status !== "unsupported") ??
+      candidates[0];
+    if (!first) return;
+    const next = candidateToDraft(first, templateId);
+    reset(next);
+    syncSelectModes(next);
+    setValidationMessages({});
+    setConfirmedSignature(null);
+  }
+
+  function selectDraft(id: string) {
+    const next = queue.select(id, getValues());
+    reset(next);
+    syncSelectModes(next);
+    setValidationMessages({});
+    setConfirmedSignature(null);
+  }
+
+  function removeDraft(id: string) {
+    const index = queue.drafts.findIndex((draft) => draft.candidate.id === id);
+    const remaining = queue.drafts.filter(
+      (draft) => draft.candidate.id !== id,
+    );
+    queue.remove(id);
+    if (queue.selectedId !== id) return;
+    const next =
+      remaining[Math.min(index, Math.max(0, remaining.length - 1))]?.values;
+    const replacement = next ?? defaultValues();
+    reset(replacement);
+    syncSelectModes(replacement);
+  }
 
   function changeTravelType(next: TravelType) {
     setValue("travelType", next);
@@ -173,7 +225,9 @@ export function ExpenseForm() {
   const reviewSignature = JSON.stringify(values);
   const reviewConfirmed = confirmedSignature === reviewSignature;
   const reviewItems = [
-    travelType === "public"
+    travelType === ""
+      ? "출장유형: 직접 선택 필요"
+      : travelType === "public"
       ? `대중교통 운임 합계: ${totalFare.toLocaleString("ko-KR")}원`
       : `${travelTypeLabel(travelType)}: 운임 금액 없음`,
     hasExpense(values.lodging)
@@ -190,6 +244,14 @@ export function ExpenseForm() {
   return (
     <div className="workspace-grid">
       <form className="expense-form" onSubmit={(event) => event.preventDefault()}>
+        <ImportPanel onCandidates={importCandidates} />
+        <ImportCandidateList
+          drafts={queue.drafts}
+          onIncludedChange={queue.setIncluded}
+          onRemove={removeDraft}
+          onSelect={selectDraft}
+          selectedId={queue.selectedId}
+        />
         <section className="form-section template-section" aria-labelledby="template-title">
           <div className="section-heading">
             <div>
@@ -355,6 +417,7 @@ export function ExpenseForm() {
                   changeTravelType(event.target.value as TravelType)
                 }
               >
+                <option value="">직접 선택</option>
                 <option value="public">대중교통</option>
                 <option value="car">자가용</option>
                 <option value="ride">차량동승</option>
@@ -581,8 +644,9 @@ function validationLabel(path: PropertyKey[]): string {
   return "입력 내용";
 }
 
-function travelTypeLabel(type: TravelType): string {
+function travelTypeLabel(type: TravelType | ""): string {
   return {
+    "": "직접 선택",
     public: "대중교통",
     car: "자가용",
     ride: "차량동승",

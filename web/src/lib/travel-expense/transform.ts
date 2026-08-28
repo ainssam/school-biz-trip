@@ -1,9 +1,11 @@
 import type { RouteInput } from "./schema";
 
-type FareOnly = Pick<RouteInput, "fare">;
+type FareOnly = { fare?: unknown };
 type FilenameInput = { name: string; tripStart: string };
 
-export function makeReturnRoute(route: RouteInput): RouteInput {
+export function makeReturnRoute<T extends { from: string; to: string }>(
+  route: T,
+): T {
   return {
     ...route,
     from: route.to,
@@ -23,7 +25,7 @@ export function sumFare(routes: FareOnly[]): number {
 }
 
 export function formatFareForOutput(
-  value: RouteInput["fare"] | undefined,
+  value: RouteInput["fare"] | null | undefined,
 ): string {
   return typeof value === "number" && Number.isFinite(value)
     ? value.toLocaleString("ko-KR")

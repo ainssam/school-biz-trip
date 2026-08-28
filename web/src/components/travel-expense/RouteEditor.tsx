@@ -4,13 +4,16 @@ import type {
   UseFieldArrayRemove,
   UseFormRegister,
 } from "react-hook-form";
-import type { TravelExpenseInput, TravelType } from "@/lib/travel-expense/schema";
+import type {
+  TravelExpenseDraftInput,
+} from "@/lib/travel-expense/draft";
+import type { TravelType } from "@/lib/travel-expense/schema";
 
 type RouteEditorProps = {
-  fields: FieldArrayWithId<TravelExpenseInput, "routes", "id">[];
-  register: UseFormRegister<TravelExpenseInput>;
-  travelType: TravelType;
-  append: UseFieldArrayAppend<TravelExpenseInput, "routes">;
+  fields: FieldArrayWithId<TravelExpenseDraftInput, "routes", "id">[];
+  register: UseFormRegister<TravelExpenseDraftInput>;
+  travelType: TravelType | "";
+  append: UseFieldArrayAppend<TravelExpenseDraftInput, "routes">;
   remove: UseFieldArrayRemove;
   onAddReturn: () => void;
   validationMessages: Record<string, string>;
@@ -65,6 +68,7 @@ export function RouteEditor({
                   aria-label={`교통편 ${index + 1}`}
                   {...register(`routes.${index}.transport`)}
                 >
+                  <option value="">직접 선택</option>
                   {transportOptions.map((option) => (
                     <option key={option}>{option}</option>
                   ))}
@@ -96,6 +100,7 @@ export function RouteEditor({
                   aria-label={`등급 ${index + 1}`}
                   {...register(`routes.${index}.grade`)}
                 >
+                  <option value="">직접 선택</option>
                   <option value="제2호">제2호</option>
                   <option value="제1호">제1호</option>
                   <option value="미기재">미기재</option>
@@ -112,7 +117,11 @@ export function RouteEditor({
                     type="number"
                     {...register(`routes.${index}.fare`, {
                       setValueAs: (value) =>
-                        value === "미기재" ? "미기재" : Number(value || 0),
+                        value === ""
+                          ? null
+                          : value === "미기재"
+                            ? "미기재"
+                            : Number(value),
                     })}
                   />
                 ) : (
@@ -173,8 +182,9 @@ function fieldDate(date: string | undefined): string {
   return date || new Date().toISOString().slice(0, 10);
 }
 
-export function transportFor(travelType: TravelType): string {
+export function transportFor(travelType: TravelType | ""): string {
   return {
+    "": "",
     public: "철도",
     car: "자가용",
     ride: "차량동승",

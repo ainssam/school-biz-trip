@@ -167,6 +167,54 @@ input:focus, select:focus {
 input::placeholder { color: #94a3b8; }
 input[readonly] { background: var(--color-surface); color: var(--color-muted); }
 
+.import-dropzone {
+  display: grid;
+  gap: 7px;
+  padding: 18px;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  background: #f8fbff;
+  cursor: pointer;
+}
+.import-dropzone > span { margin: 0; color: var(--color-primary-dark); font-size: 14px; }
+.import-dropzone input { min-height: 38px; padding: 6px; background: var(--color-paper); }
+.import-dropzone small, .import-privacy { color: var(--color-muted); font-size: 11px; }
+.import-privacy { margin: 10px 0 0; }
+.candidate-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.candidate-card {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fbfdff;
+}
+.candidate-card.selected { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgb(14 165 233 / 10%); }
+.candidate-select {
+  display: grid;
+  width: 100%;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+.candidate-select span { overflow: hidden; color: #475569; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.candidate-select small { color: var(--color-primary-dark); }
+.candidate-issues { margin: 0; padding: 0 28px 10px; color: #9a3412; font-size: 11px; }
+.candidate-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
+.candidate-actions label { display: flex; align-items: center; gap: 7px; }
+.candidate-actions label > span { margin: 0; }
+.candidate-actions input { width: 16px; min-height: 16px; }
+
 .route-list { display: grid; gap: 12px; }
 .route-card {
   margin: 0;
