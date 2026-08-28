@@ -13,7 +13,7 @@ export type ImportableField = (typeof importableFields)[number];
 
 export type ImportSource = {
   fileName: string;
-  fileType: "xlsx" | "pdf";
+  fileType: "xlsx" | "pdf" | "unsupported";
   sheetName?: string;
   row?: number;
   block?: number;
