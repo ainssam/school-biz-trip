@@ -51,7 +51,15 @@ describe("HWP 템플릿 섹션 복제", () => {
 
       await patcher.duplicateSectionsInPlace(outputPath, 3);
 
-      const CFB = await import("../../../vendor/claw-hwp/vendor/cfb/cfb.js");
+      const CFB = (await import(
+        "../../../vendor/claw-hwp/vendor/cfb/cfb.js"
+      )) as unknown as {
+        parse(data: Uint8Array): unknown;
+        find(
+          cfb: unknown,
+          streamPath: string,
+        ): { content: Uint8Array } | null;
+      };
       const cfb = CFB.parse(await readFile(outputPath));
       expect(CFB.find(cfb, "Root Entry/BodyText/Section0")).toBeTruthy();
       expect(CFB.find(cfb, "Root Entry/BodyText/Section1")).toBeTruthy();
@@ -59,6 +67,7 @@ describe("HWP 템플릿 섹션 복제", () => {
       expect(CFB.find(cfb, "Root Entry/BodyText/Section3")).toBeNull();
       const docInfo = CFB.find(cfb, "Root Entry/DocInfo");
       expect(docInfo).toBeTruthy();
+      if (!docInfo) throw new Error("DocInfo 스트림을 찾지 못했습니다.");
       const rawDocInfo = Buffer.from(
         inflateRawSync(Buffer.from(docInfo.content)),
       );

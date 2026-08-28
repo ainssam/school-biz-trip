@@ -1,7 +1,10 @@
 import { ZodError } from "zod";
-import { generateHwp } from "@/lib/hwp/generate-hwp";
-import { travelExpenseSchema } from "@/lib/travel-expense/schema";
-import { makeDownloadFilename } from "@/lib/travel-expense/transform";
+import { generateHwpBatch } from "@/lib/hwp/generate-hwp";
+import { parseTravelExpenseBatch } from "@/lib/travel-expense/batch-schema";
+import {
+  makeBatchDownloadFilename,
+  makeDownloadFilename,
+} from "@/lib/travel-expense/transform";
 
 export const runtime = "nodejs";
 
@@ -11,9 +14,12 @@ function downloadDisposition(filename: string): string {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const input = travelExpenseSchema.parse(await request.json());
-    const bytes = await generateHwp(input);
-    const filename = makeDownloadFilename(input, "hwp");
+    const body = await request.json();
+    const inputs = parseTravelExpenseBatch(body);
+    const bytes = await generateHwpBatch(inputs);
+    const filename = Array.isArray(body)
+      ? makeBatchDownloadFilename(inputs.length, "hwp")
+      : makeDownloadFilename(inputs[0], "hwp");
 
     return new Response(Buffer.from(bytes), {
       headers: {

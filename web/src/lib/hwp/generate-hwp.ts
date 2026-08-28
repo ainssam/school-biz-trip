@@ -31,6 +31,10 @@ type CellEdit = {
 };
 
 type PatchModule = {
+  duplicateSectionsInPlace: (
+    filePath: string,
+    sectionCount: number,
+  ) => Promise<{ sectionCount: number }>;
   patchCellsInPlace: (
     filePath: string,
     edits: CellEdit[],
@@ -82,10 +86,11 @@ function formatAttachments(input: TravelExpenseInput): string {
 function buildCellEdits(
   input: TravelExpenseInput,
   fieldMap: HwpFieldMap,
+  section = fieldMap.table.section,
 ): CellEdit[] {
   const table = fieldMap.table;
   const base = {
-    section: table.section,
+    section,
     para: table.paragraph,
     control: table.control,
   };
@@ -162,12 +167,23 @@ async function loadPatcher(): Promise<PatchModule> {
   return importAtRuntime(pathToFileURL(runtimePath).href);
 }
 
-export async function generateHwp(
-  input: TravelExpenseInput,
+export async function generateHwpBatch(
+  inputs: TravelExpenseInput[],
 ): Promise<Uint8Array> {
-  const parsed = travelExpenseSchema.parse(input);
+  const parsedItems = inputs.map((input) => travelExpenseSchema.parse(input));
+  if (parsedItems.length === 0) {
+    throw new Error("출장 신청서가 한 건 이상 필요합니다.");
+  }
+  if (
+    parsedItems.length > 40 ||
+    parsedItems.some(
+      (input) => input.templateId !== parsedItems[0].templateId,
+    )
+  ) {
+    throw new Error("HWP 일괄 생성 입력을 확인해 주세요.");
+  }
   const { hwpPath, hwpFieldMap } = await loadTemplateAssets(
-    parsed.templateId,
+    parsedItems[0].templateId,
   );
   const tempDirectory = await mkdtemp(
     path.join(tmpdir(), "travel-expense-hwp-"),
@@ -176,10 +192,23 @@ export async function generateHwp(
 
   try {
     await copyFile(hwpPath, outputPath);
-    const { patchCellsInPlace } = await loadPatcher();
-    await patchCellsInPlace(outputPath, buildCellEdits(parsed, hwpFieldMap));
+    const { duplicateSectionsInPlace, patchCellsInPlace } =
+      await loadPatcher();
+    await duplicateSectionsInPlace(outputPath, parsedItems.length);
+    await patchCellsInPlace(
+      outputPath,
+      parsedItems.flatMap((parsed, index) =>
+        buildCellEdits(parsed, hwpFieldMap, index),
+      ),
+    );
     return new Uint8Array(await readFile(outputPath));
   } finally {
     await rm(tempDirectory, { recursive: true, force: true });
   }
+}
+
+export async function generateHwp(
+  input: TravelExpenseInput,
+): Promise<Uint8Array> {
+  return generateHwpBatch([input]);
 }
