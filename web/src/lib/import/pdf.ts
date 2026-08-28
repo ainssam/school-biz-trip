@@ -38,7 +38,15 @@ function headerField(text: string): PdfHeaderField | null {
   for (const [field, aliases] of Object.entries(HEADER_ALIASES) as Array<
     [PdfHeaderField, string[]]
   >) {
-    if (aliases.some((alias) => normalizeLabel(alias) === normalized)) {
+    if (
+      aliases.some((alias) => {
+        const normalizedAlias = normalizeLabel(alias);
+        return (
+          normalized === normalizedAlias ||
+          normalized.startsWith(normalizedAlias)
+        );
+      })
+    ) {
       return field;
     }
   }
@@ -47,6 +55,85 @@ function headerField(text: string): PdfHeaderField | null {
 
 function center(item: PositionedPdfText): number {
   return item.x + item.width / 2;
+}
+
+function coalesceLineFragments(
+  items: PositionedPdfText[],
+): PositionedPdfText[] {
+  const lines: Array<{ y: number; items: PositionedPdfText[] }> = [];
+  for (const item of [...items].sort((left, right) => right.y - left.y)) {
+    const line = lines.find((candidate) => Math.abs(candidate.y - item.y) <= 2);
+    if (line) {
+      line.items.push(item);
+    } else {
+      lines.push({ y: item.y, items: [item] });
+    }
+  }
+
+  const result: PositionedPdfText[] = [];
+  for (const line of lines) {
+    const ordered = [...line.items].sort((left, right) => left.x - right.x);
+    const whitespaceWidths = ordered
+      .filter((item) => !item.text.trim() && item.width > 0)
+      .map((item) => item.width)
+      .sort((left, right) => left - right);
+    const medianWhitespace =
+      whitespaceWidths.length > 0
+        ? whitespaceWidths[Math.floor((whitespaceWidths.length - 1) / 2)]
+        : 0;
+    const inlineWhitespaceLimit = medianWhitespace * 1.5;
+    const textItems = ordered.filter((item) => item.text.trim());
+    const textGaps = textItems
+      .slice(1)
+      .map(
+        (item, index) =>
+          item.x - (textItems[index].x + textItems[index].width),
+      )
+      .filter((gap) => gap > 0)
+      .sort((left, right) => left - right);
+    const medianTextGap =
+      textItems.length >= 8 && textGaps.length > 0
+        ? textGaps[Math.floor((textGaps.length - 1) / 2)]
+        : 0;
+    const inlineTextGapLimit = Math.max(2, medianTextGap * 1.5);
+    let current: PositionedPdfText | null = null;
+    const flush = () => {
+      if (current?.text.trim()) result.push(current);
+      current = null;
+    };
+    for (const item of ordered) {
+      if (!item.text.trim()) {
+        if (item.width > inlineWhitespaceLimit) {
+          flush();
+        } else if (current) {
+          const active: PositionedPdfText = current;
+          current = {
+            ...active,
+            text: active.text + item.text,
+            width: item.x + item.width - active.x,
+          };
+        }
+        continue;
+      }
+      if (!current) {
+        current = { ...item };
+        continue;
+      }
+      const gap = item.x - (current.x + current.width);
+      if (gap <= inlineTextGapLimit) {
+        current = {
+          ...current,
+          text: current.text + item.text,
+          width: item.x + item.width - current.x,
+        };
+      } else {
+        flush();
+        current = { ...item };
+      }
+    }
+    flush();
+  }
+  return result;
 }
 
 function dateValues(text: string): string[] {
@@ -93,7 +180,8 @@ export function parsePdfPageItems(
     return pageIssueCandidate(source, "텍스트를 읽을 수 없는 PDF 페이지");
   }
 
-  const headers = items
+  const normalizedItems = coalesceLineFragments(items);
+  const headers = normalizedItems
     .map((item) => ({ item, field: headerField(item.text) }))
     .filter(
       (
@@ -131,7 +219,7 @@ export function parsePdfPageItems(
         ? Number.POSITIVE_INFINITY
         : (header.x + orderedHeaders[index + 1].x) / 2,
   }));
-  const bodyItems = items.filter(
+  const bodyItems = normalizedItems.filter(
     (item) => item.y < headerY - 2 && item.y > headerY - 140,
   );
   const columnText = new Map<PdfHeaderField, string>();
@@ -162,7 +250,7 @@ export function parsePdfPageItems(
     values.tripEnd = periodDates[1];
   }
 
-  const applicationDate = items
+  const applicationDate = normalizedItems
     .filter((item) => item.y > headerY + 5 && dateValues(item.text).length === 1)
     .sort(
       (left, right) =>
@@ -210,9 +298,9 @@ export async function parsePdfBuffer(
   data: ArrayBuffer,
   fileName: string,
 ): Promise<TripImportCandidate[]> {
-  const pdfjs = await import("pdfjs-dist");
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
+    "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
     import.meta.url,
   ).toString();
   const loadingTask = pdfjs.getDocument({ data: new Uint8Array(data) });

@@ -647,6 +647,7 @@ export function ExpenseForm() {
           </label>
         </section>
         <DownloadActions
+          batch={queue.drafts.length > 0}
           busy={busy}
           confirmed={reviewConfirmed}
           onDownload={download}

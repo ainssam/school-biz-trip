@@ -57,6 +57,87 @@ describe("PDF 출장 신청서 인식", () => {
     expect(result.values.tripEnd).toBe("2026-08-27");
   });
 
+  it("출장지 뒤의 서명 머리글이 붙어도 출장지 열을 구분한다", () => {
+    const items = applicationItems().map((item) =>
+      item.text === "출장지"
+        ? { ...item, text: "출장지 서명 또는 날인", width: 120 }
+        : item,
+    );
+
+    const result = parsePdfPageItems(items, {
+      fileName: "joined-header.pdf",
+      fileType: "pdf",
+      page: 1,
+    });
+
+    expect(result.status).not.toBe("unsupported");
+    expect(result.values.destination).toBe("가상기관");
+  });
+
+  it("글자와 짧은 간격으로 분리 저장된 머리글을 복원한다", () => {
+    const body = applicationItems()
+      .filter((item) => item.y !== 700)
+      .map((item) => {
+        if (item.text === "교사") return { ...item, x: 53 };
+        if (item.text === "가상교사") return { ...item, x: 120 };
+        if (item.text === "합성 연수") return { ...item, x: 196 };
+        if (item.text.includes("부터") || item.text.includes("까지")) {
+          return { ...item, x: 324 };
+        }
+        if (item.text === "가상기관") return { ...item, x: 408 };
+        return item;
+      });
+    const splitHeaders: PositionedPdfText[] = [
+      { text: "직", x: 53, y: 700, width: 10 },
+      { text: " ", x: 63, y: 700, width: 15 },
+      { text: "급", x: 78, y: 700, width: 10 },
+      { text: " ", x: 88, y: 700, width: 32 },
+      { text: "성", x: 120, y: 700, width: 10 },
+      { text: " ", x: 130, y: 700, width: 15 },
+      { text: "명", x: 145, y: 700, width: 10 },
+      { text: " ", x: 155, y: 700, width: 41 },
+      { text: "출", x: 196, y: 700, width: 10 },
+      { text: " ", x: 206, y: 700, width: 10 },
+      { text: "장", x: 216, y: 700, width: 10 },
+      { text: " ", x: 226, y: 700, width: 10 },
+      { text: "목", x: 236, y: 700, width: 10 },
+      { text: " ", x: 246, y: 700, width: 10 },
+      { text: "적", x: 256, y: 700, width: 10 },
+      { text: " ", x: 266, y: 700, width: 58 },
+      { text: "출장기간", x: 324, y: 700, width: 40 },
+      { text: " ", x: 364, y: 700, width: 44 },
+      { text: "출", x: 408, y: 700, width: 10 },
+      { text: " ", x: 418, y: 700, width: 10 },
+      { text: "장", x: 428, y: 700, width: 10 },
+      { text: " ", x: 438, y: 700, width: 10 },
+      { text: "지", x: 448, y: 700, width: 10 },
+    ];
+
+    const scale = 1.6;
+    const jitteredHeaders = splitHeaders
+      .filter((item) => item.text.trim())
+      .map((item, index) => ({
+        ...item,
+        x: item.x * scale,
+        width: item.width * scale,
+        y: item.y + ((index % 3) - 1) * 0.8,
+      }));
+    const scaledBody = body.map((item) => ({
+      ...item,
+      x: item.x * scale,
+      width: item.width * scale,
+    }));
+    const result = parsePdfPageItems([...jitteredHeaders, ...scaledBody], {
+      fileName: "split-header.pdf",
+      fileType: "pdf",
+      page: 1,
+    });
+
+    expect(result.status).not.toBe("unsupported");
+    expect(result.values.name).toBe("가상교사");
+    expect(result.values.destination).toBe("가상기관");
+  });
+
   it("여러 페이지를 페이지 순서대로 독립 후보로 유지한다", () => {
     const pages = Array.from({ length: 4 }, (_, index) =>
       applicationItems([

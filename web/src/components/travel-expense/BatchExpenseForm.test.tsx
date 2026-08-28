@@ -131,7 +131,9 @@ describe("불러온 출장 건 편집", () => {
     await user.click(
       screen.getByRole("checkbox", { name: "입력 내용을 확인했습니다." }),
     );
-    await user.click(screen.getByRole("button", { name: "PDF 내려받기" }));
+    await user.click(
+      screen.getByRole("button", { name: "일괄 PDF 내려받기" }),
+    );
 
     const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
     expect(JSON.parse(String(request.body))).toHaveLength(2);
