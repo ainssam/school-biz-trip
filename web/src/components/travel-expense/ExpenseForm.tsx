@@ -16,6 +16,7 @@ import {
   makeReturnRoute,
   sumFare,
 } from "@/lib/travel-expense/transform";
+import { downloadBlob } from "@/lib/download";
 import {
   defaultTemplateId,
   getTemplateById,
@@ -138,12 +139,10 @@ export function ExpenseForm() {
         body: JSON.stringify(parsed.data),
       });
       if (!response.ok) throw new Error("generation-failed");
-      const url = URL.createObjectURL(await response.blob());
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = makeDownloadFilename(parsed.data, format);
-      anchor.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(
+        await response.blob(),
+        makeDownloadFilename(parsed.data, format),
+      );
       remember(parsed.data.school, [
         ...parsed.data.routes.flatMap((route) => [route.from, route.to]),
         parsed.data.destination,
