@@ -82,6 +82,35 @@ async function uploadAndCompleteBatch(page: Page) {
     .check();
 }
 
+test("출장 건 목록을 데스크톱 4열·모바일 1열로 배치한다", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/");
+  const workbook = syntheticWorkbook();
+  await page.getByLabel("출장 신청서 파일").setInputFiles([
+    {
+      name: "synthetic-a.xlsx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: workbook,
+    },
+    {
+      name: "synthetic-b.xlsx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: workbook,
+    },
+  ]);
+  await expect(page.getByRole("button", { name: /출장 건 4/ })).toBeVisible();
+
+  const columnCount = await page.locator(".candidate-list").evaluate((element) =>
+    getComputedStyle(element).gridTemplateColumns.split(" ").length,
+  );
+  expect(columnCount).toBe(
+    testInfo.project.name === "desktop-chromium" ? 4 : 1,
+  );
+});
+
 test("여러 시트의 출장 건을 한 다중 페이지 PDF로 내려받는다", async ({
   page,
 }) => {

@@ -67,6 +67,7 @@ test("출장유형을 바꿔도 React 입력 제어 경고가 발생하지 않�
 test("시작일과 종료일을 가는 경로와 돌아오는 경로에 자동 반영한다", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("시작일 *").fill("2026-09-01");
+  await expect(page.getByLabel("일자 1")).toHaveValue("2026-09-01");
   await page.getByLabel("종료일 *").fill("2026-09-03");
   await page.getByRole("button", { name: "돌아오는 경로 자동 추가" }).click();
 

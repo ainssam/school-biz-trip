@@ -13,7 +13,13 @@ export type PositionedPdfText = {
   width: number;
 };
 
-type PdfHeaderField = "position" | "name" | "purpose" | "period" | "destination";
+type PdfHeaderField =
+  | "position"
+  | "name"
+  | "purpose"
+  | "period"
+  | "destination"
+  | "signature";
 
 const HEADER_ALIASES: Record<PdfHeaderField, string[]> = {
   position: ["직급", "직위", "직급직위"],
@@ -21,6 +27,7 @@ const HEADER_ALIASES: Record<PdfHeaderField, string[]> = {
   purpose: ["출장목적", "목적"],
   period: ["출장기간", "출장일", "출장일시", "일시"],
   destination: ["출장지", "장소", "기관"],
+  signature: ["서명", "서명또는날인", "날인"],
 };
 
 const REQUIRED_FIELDS: Array<[ImportableField, string]> = [
@@ -51,6 +58,39 @@ function headerField(text: string): PdfHeaderField | null {
     }
   }
   return null;
+}
+
+function headerEntries(
+  item: PositionedPdfText,
+): Array<{ item: PositionedPdfText; field: PdfHeaderField }> {
+  const normalized = normalizeLabel(item.text);
+  const signatureIndex = normalized.search(/서명|날인/);
+  if (
+    signatureIndex > 0 &&
+    HEADER_ALIASES.destination.some((alias) =>
+      normalized.startsWith(normalizeLabel(alias)),
+    )
+  ) {
+    const splitX = item.x + item.width * (signatureIndex / normalized.length);
+    return [
+      {
+        field: "destination",
+        item: { ...item, text: "출장지", width: splitX - item.x },
+      },
+      {
+        field: "signature",
+        item: {
+          ...item,
+          text: "서명 또는 날인",
+          x: splitX,
+          width: item.x + item.width - splitX,
+        },
+      },
+    ];
+  }
+
+  const field = headerField(item.text);
+  return field ? [{ item, field }] : [];
 }
 
 function center(item: PositionedPdfText): number {
@@ -181,14 +221,7 @@ export function parsePdfPageItems(
   }
 
   const normalizedItems = coalesceLineFragments(items);
-  const headers = normalizedItems
-    .map((item) => ({ item, field: headerField(item.text) }))
-    .filter(
-      (
-        entry,
-      ): entry is { item: PositionedPdfText; field: PdfHeaderField } =>
-        entry.field !== null,
-    );
+  const headers = normalizedItems.flatMap(headerEntries);
   const byField = new Map<PdfHeaderField, PositionedPdfText>();
   for (const header of headers) {
     if (!byField.has(header.field)) byField.set(header.field, header.item);
@@ -213,11 +246,17 @@ export function parsePdfPageItems(
     left:
       index === 0
         ? Number.NEGATIVE_INFINITY
-        : (orderedHeaders[index - 1].x + header.x) / 2,
+        : (orderedHeaders[index - 1].item.x +
+            orderedHeaders[index - 1].item.width +
+            header.item.x) /
+          2,
     right:
       index === orderedHeaders.length - 1
         ? Number.POSITIVE_INFINITY
-        : (header.x + orderedHeaders[index + 1].x) / 2,
+        : (header.item.x +
+            header.item.width +
+            orderedHeaders[index + 1].item.x) /
+          2,
   }));
   const bodyItems = normalizedItems.filter(
     (item) => item.y < headerY - 2 && item.y > headerY - 140,

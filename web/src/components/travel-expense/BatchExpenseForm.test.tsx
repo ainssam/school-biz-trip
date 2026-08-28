@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TripImportCandidate } from "@/lib/import/types";
@@ -34,6 +34,26 @@ function candidate(
   };
 }
 
+function formReadyCandidate(
+  id: string,
+  name: string,
+  destination = "",
+): TripImportCandidate {
+  return {
+    ...candidate(id, name, "합성 연수"),
+    values: {
+      school: "복자여자고등학교",
+      position: "교사",
+      name,
+      applicationDate: "2026-08-26",
+      tripStart: "2026-08-27",
+      tripEnd: "2026-08-27",
+      purpose: "합성 연수",
+      destination,
+    },
+  };
+}
+
 describe("불러온 출장 건 편집", () => {
   beforeEach(() => vi.mocked(readTripFiles).mockReset());
 
@@ -50,8 +70,12 @@ describe("불러온 출장 건 편집", () => {
     );
 
     expect(await screen.findByDisplayValue("가상교사")).toBeVisible();
-    expect(screen.getByLabelText("출장지 *")).toHaveValue("");
-    expect(screen.getByText("출장지 직접 입력 필요")).toBeVisible();
+    expect(screen.getByPlaceholderText("기관명 또는 지역")).toHaveValue("");
+    const card = screen
+      .getByRole("button", { name: /출장 건 1/ })
+      .closest("li");
+    if (!card) throw new Error("출장 건 카드를 찾지 못했습니다.");
+    expect(within(card).getByText("출장지")).toBeVisible();
   });
 
   it("다른 출장 건을 보고 돌아와도 사용자가 수정한 값을 보존한다", async () => {
@@ -78,19 +102,44 @@ describe("불러온 출장 건 편집", () => {
     );
   });
 
+  it("현재 편집값을 기준으로 필요한 입력을 즉시 다시 표시한다", async () => {
+    vi.mocked(readTripFiles).mockResolvedValueOnce([
+      formReadyCandidate("first", "가상교사"),
+    ]);
+    const user = userEvent.setup();
+    render(<ExpenseForm />);
+    await user.upload(
+      screen.getByLabelText("출장 신청서 파일"),
+      new File(["xlsx"], "synthetic.xlsx"),
+    );
+
+    const card = screen
+      .getByRole("button", { name: /출장 건 1/ })
+      .closest("li");
+    if (!card) throw new Error("출장 건 카드를 찾지 못했습니다.");
+    expect(within(card).getByText("출장지")).toBeVisible();
+    expect(within(card).getByText("출장유형")).toBeVisible();
+    expect(within(card).getByText("경로 1 출발지")).toBeVisible();
+    expect(
+      screen.getByRole("checkbox", { name: "입력 내용을 확인했습니다." }),
+    ).toBeDisabled();
+
+    await user.type(screen.getByPlaceholderText("기관명 또는 지역"), "가상기관");
+    expect(within(card).queryByText("출장지")).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("출장유형"), "public");
+    await user.selectOptions(screen.getByLabelText("등급 1"), "제2호");
+    await user.type(screen.getByLabelText("출발지 1"), "가상출발");
+    await user.type(screen.getByLabelText("도착지 1"), "가상도착");
+
+    expect(within(card).getByText("입력 완료")).toBeVisible();
+    expect(
+      screen.getByRole("checkbox", { name: "입력 내용을 확인했습니다." }),
+    ).toBeEnabled();
+  });
+
   it("출력에 포함한 여러 출장 건을 배열 요청으로 보낸다", async () => {
     const complete = (id: string, name: string): TripImportCandidate => ({
-      ...candidate(id, name, "합성 연수"),
-      values: {
-        school: "복자여자고등학교",
-        position: "교사",
-        name,
-        applicationDate: "2026-08-26",
-        tripStart: "2026-08-27",
-        tripEnd: "2026-08-27",
-        purpose: "합성 연수",
-        destination: "가상기관",
-      },
+      ...formReadyCandidate(id, name, "가상기관"),
       recognizedFields: [
         "school",
         "position",
@@ -127,6 +176,11 @@ describe("불러온 출장 건 편집", () => {
       await user.selectOptions(screen.getByLabelText("등급 1"), "제2호");
       await user.type(screen.getByLabelText("출발지 1"), "가상출발");
       await user.type(screen.getByLabelText("도착지 1"), "가상도착");
+      if (index === 1) {
+        expect(
+          screen.getByRole("checkbox", { name: "입력 내용을 확인했습니다." }),
+        ).toBeDisabled();
+      }
     }
     await user.click(
       screen.getByRole("checkbox", { name: "입력 내용을 확인했습니다." }),

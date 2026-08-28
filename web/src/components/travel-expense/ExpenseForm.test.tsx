@@ -3,6 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ExpenseForm } from "./ExpenseForm";
 
+async function completeRequiredFields(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByPlaceholderText("신청인 성명"), "홍길동");
+  await user.type(screen.getByLabelText("출발지 1"), "천안");
+  await user.type(screen.getByLabelText("도착지 1"), "서울");
+  await user.type(screen.getByLabelText("출장지 *"), "서울");
+  await user.type(screen.getByLabelText("출장목적 *"), "연수");
+}
+
 describe("여비정산 입력", () => {
   it("지역·학교·연도로 사용할 문서 템플릿을 선택한다", () => {
     render(<ExpenseForm />);
@@ -63,15 +71,9 @@ describe("여비정산 입력", () => {
   });
 
   it("내려받기 전에 빠진 필수 입력을 구체적으로 알려준다", async () => {
-    const user = userEvent.setup();
     render(<ExpenseForm />);
 
-    await user.click(
-      screen.getByRole("checkbox", { name: "입력 내용을 확인했습니다." }),
-    );
-    await user.click(screen.getByRole("button", { name: "HWP 내려받기" }));
-
-    const status = screen.getByRole("status");
+    const status = screen.getByLabelText("실시간 필수 입력");
     expect(status).toHaveTextContent("성명");
     expect(status).toHaveTextContent("출장지");
     expect(status).toHaveTextContent("출장목적");
@@ -100,14 +102,18 @@ describe("여비정산 입력", () => {
     render(<ExpenseForm />);
 
     const hwpButton = screen.getByRole("button", { name: "HWP 내려받기" });
+    const confirmation = screen.getByRole("checkbox", {
+      name: "입력 내용을 확인했습니다.",
+    });
     expect(hwpButton).toBeDisabled();
+    expect(confirmation).toBeDisabled();
 
-    await user.click(
-      screen.getByRole("checkbox", { name: "입력 내용을 확인했습니다." }),
-    );
+    await completeRequiredFields(user);
+    expect(confirmation).toBeEnabled();
+    await user.click(confirmation);
     expect(hwpButton).toBeEnabled();
 
-    await user.type(screen.getByPlaceholderText("신청인 성명"), "홍길동");
+    await user.type(screen.getByPlaceholderText("신청인 성명"), "길");
     await waitFor(() => expect(hwpButton).toBeDisabled());
   });
 
@@ -119,11 +125,7 @@ describe("여비정산 입력", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<ExpenseForm />);
 
-    await user.type(screen.getByPlaceholderText("신청인 성명"), "홍길동");
-    await user.type(screen.getByLabelText("출발지 1"), "천안");
-    await user.type(screen.getByLabelText("도착지 1"), "서울");
-    await user.type(screen.getByLabelText("출장지 *"), "서울");
-    await user.type(screen.getByLabelText("출장목적 *"), "연수");
+    await completeRequiredFields(user);
     await user.click(
       screen.getByRole("checkbox", { name: "입력 내용을 확인했습니다." }),
     );

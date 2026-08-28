@@ -58,11 +58,14 @@ describe("PDF 출장 신청서 인식", () => {
   });
 
   it("출장지 뒤의 서명 머리글이 붙어도 출장지 열을 구분한다", () => {
-    const items = applicationItems().map((item) =>
-      item.text === "출장지"
-        ? { ...item, text: "출장지 서명 또는 날인", width: 120 }
-        : item,
-    );
+    const items = [
+      ...applicationItems().map((item) =>
+        item.text === "출장지"
+          ? { ...item, text: "출장지 서명 또는 날인", width: 120 }
+          : item,
+      ),
+      { text: "가상교사", x: 625, y: 660, width: 45 },
+    ];
 
     const result = parsePdfPageItems(items, {
       fileName: "joined-header.pdf",
@@ -71,6 +74,30 @@ describe("PDF 출장 신청서 인식", () => {
     });
 
     expect(result.status).not.toBe("unsupported");
+    expect(result.values.destination).toBe("가상기관");
+  });
+
+  it("왼쪽으로 줄바꿈된 출장목적을 성명에 섞지 않는다", () => {
+    const result = parsePdfPageItems(
+      applicationItems([
+        { text: "참석", x: 205, y: 640, width: 30 },
+      ]),
+      { fileName: "wrapped-purpose.pdf", fileType: "pdf", page: 1 },
+    );
+
+    expect(result.values.name).toBe("가상교사");
+    expect(result.values.purpose).toBe("합성 연수 참석");
+  });
+
+  it("서명 열의 신청인 이름을 출장지에 섞지 않는다", () => {
+    const result = parsePdfPageItems(
+      applicationItems([
+        { text: "서명 또는 날인", x: 610, y: 700, width: 90 },
+        { text: "가상교사", x: 625, y: 660, width: 45 },
+      ]),
+      { fileName: "signature-column.pdf", fileType: "pdf", page: 1 },
+    );
+
     expect(result.values.destination).toBe("가상기관");
   });
 

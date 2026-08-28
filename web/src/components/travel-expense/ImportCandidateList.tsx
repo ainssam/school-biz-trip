@@ -1,9 +1,11 @@
 "use client";
 
 import type { QueuedTripDraft } from "@/hooks/useTripDraftQueue";
+import type { DraftValidation } from "@/lib/travel-expense/validation";
 
 type ImportCandidateListProps = {
   drafts: QueuedTripDraft[];
+  validations: Record<string, DraftValidation>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onIncludedChange: (id: string, included: boolean) => void;
@@ -28,6 +30,7 @@ function sourceLabel(draft: QueuedTripDraft): string {
 
 export function ImportCandidateList({
   drafts,
+  validations,
   selectedId,
   onSelect,
   onIncludedChange,
@@ -49,6 +52,11 @@ export function ImportCandidateList({
       <ol className="candidate-list">
         {drafts.map((draft, index) => {
           const selected = draft.candidate.id === selectedId;
+          const validation = validations[draft.candidate.id];
+          const issues =
+            draft.candidate.status === "unsupported"
+              ? draft.candidate.issues
+              : validation?.labels ?? [];
           return (
             <li className={selected ? "candidate-card selected" : "candidate-card"} key={draft.candidate.id}>
               <button
@@ -62,14 +70,14 @@ export function ImportCandidateList({
                 <small>
                   {draft.candidate.status === "unsupported"
                     ? "지원하지 않는 내용"
-                    : draft.candidate.issues.length
-                      ? "직접 입력 필요"
-                      : "인식 완료"}
+                    : validation?.valid
+                      ? "입력 완료"
+                      : `${issues.length}개 입력 필요`}
                 </small>
               </button>
-              {draft.candidate.issues.length > 0 && (
+              {issues.length > 0 && (
                 <ul className="candidate-issues">
-                  {draft.candidate.issues.map((issue) => (
+                  {issues.map((issue) => (
                     <li key={issue}>{issue}</li>
                   ))}
                 </ul>

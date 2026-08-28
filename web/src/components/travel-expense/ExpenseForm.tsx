@@ -18,6 +18,10 @@ import {
   type TravelType,
 } from "@/lib/travel-expense/schema";
 import {
+  validateTravelExpenseDraft,
+  validationLabel,
+} from "@/lib/travel-expense/validation";
+import {
   formatFareForOutput,
   makeBatchDownloadFilename,
   makeDownloadFilename,
@@ -87,10 +91,6 @@ export function ExpenseForm() {
   const [busy, setBusy] = useState<"hwp" | "pdf" | null>(null);
   const [status, setStatus] = useState("");
   const [confirmedSignature, setConfirmedSignature] = useState<string | null>(null);
-  const [validationMessages, setValidationMessages] = useState<
-    Record<string, string>
-  >({});
-
   const { control, register, getValues, reset, setValue } =
     useForm<TravelExpenseDraftInput>({ defaultValues: defaultValues() });
   const { fields, append, remove } = useFieldArray({ control, name: "routes" });
@@ -100,6 +100,32 @@ export function ExpenseForm() {
     useWatch({ control, name: "templateId" }) ?? defaultTemplateId;
   const routeValues = useWatch({ control, name: "routes" }) ?? [];
   const totalFare = sumFare(routeValues);
+  const currentValues = values as TravelExpenseDraftInput;
+  const liveDrafts = queue.drafts.map((draft) =>
+    draft.candidate.id === queue.selectedId
+      ? { ...draft, values: currentValues }
+      : draft,
+  );
+  const validations = Object.fromEntries(
+    liveDrafts.map((draft) => [
+      draft.candidate.id,
+      validateTravelExpenseDraft(draft.values),
+    ]),
+  );
+  const currentValidation = validateTravelExpenseDraft(currentValues);
+  const batchMode = liveDrafts.length > 0;
+  const includedDrafts = batchMode
+    ? liveDrafts.filter((draft) => draft.included)
+    : [];
+  const downloadReady = batchMode
+    ? includedDrafts.length > 0 &&
+      includedDrafts.every(
+        (draft) =>
+          draft.candidate.status !== "unsupported" &&
+          validations[draft.candidate.id]?.valid,
+      )
+    : currentValidation.valid;
+  const validationMessages = currentValidation.messages;
 
   function syncSelectModes(next: TravelExpenseDraftInput) {
     setSchoolMode(next.school === defaultSchool ? defaultSchool : "__other");
@@ -119,7 +145,6 @@ export function ExpenseForm() {
     const next = candidateToDraft(first, templateId);
     reset(next);
     syncSelectModes(next);
-    setValidationMessages({});
     setConfirmedSignature(null);
   }
 
@@ -127,7 +152,6 @@ export function ExpenseForm() {
     const next = queue.select(id, getValues());
     reset(next);
     syncSelectModes(next);
-    setValidationMessages({});
     setConfirmedSignature(null);
   }
 
@@ -167,16 +191,9 @@ export function ExpenseForm() {
 
   async function download(format: "hwp" | "pdf") {
     setStatus("");
-    const batchMode = queue.drafts.length > 0;
     const currentValues = getValues();
     const requestedDrafts = batchMode
-      ? queue.drafts
-          .filter((draft) => draft.included)
-          .map((draft) =>
-            draft.candidate.id === queue.selectedId
-              ? currentValues
-              : draft.values,
-          )
+      ? liveDrafts.filter((draft) => draft.included).map((draft) => draft.values)
       : [currentValues];
     const parsedResults = requestedDrafts.map((draft) =>
       travelExpenseSchema.safeParse(draft),
@@ -185,20 +202,6 @@ export function ExpenseForm() {
       result.success ? [] : [index],
     );
     if (failedIndexes.length > 0 || requestedDrafts.length === 0) {
-      const messages: Record<string, string> = {};
-      const currentIndex = batchMode
-        ? queue.drafts
-            .filter((draft) => draft.included)
-            .findIndex((draft) => draft.candidate.id === queue.selectedId)
-        : 0;
-      const currentResult = parsedResults[currentIndex];
-      if (currentResult && !currentResult.success) {
-        for (const issue of currentResult.error.issues) {
-          const key = issue.path.join(".");
-          if (!messages[key]) messages[key] = issue.message;
-        }
-      }
-      setValidationMessages(messages);
       if (requestedDrafts.length === 0) {
         setStatus("출력에 포함할 출장 건을 한 건 이상 선택해 주세요.");
       } else if (batchMode) {
@@ -228,7 +231,6 @@ export function ExpenseForm() {
       return result.data;
     });
 
-    setValidationMessages({});
     setBusy(format);
     setStatus(`${format.toUpperCase()} 파일을 만들고 있습니다.`);
     try {
@@ -273,8 +275,11 @@ export function ExpenseForm() {
         .filter(Boolean)
         .join(", ")
     : "—";
-  const reviewSignature = JSON.stringify(values);
-  const reviewConfirmed = confirmedSignature === reviewSignature;
+  const reviewSignature = JSON.stringify(
+    batchMode ? includedDrafts.map((draft) => draft.values) : currentValues,
+  );
+  const reviewConfirmed =
+    downloadReady && confirmedSignature === reviewSignature;
   const reviewItems = [
     travelType === ""
       ? "출장유형: 직접 선택 필요"
@@ -302,6 +307,7 @@ export function ExpenseForm() {
           onRemove={removeDraft}
           onSelect={selectDraft}
           selectedId={queue.selectedId}
+          validations={validations}
         />
         <section className="form-section template-section" aria-labelledby="template-title">
           <div className="section-heading">
@@ -403,6 +409,7 @@ export function ExpenseForm() {
             <label>
               <span>성명 *</span>
               <input
+                aria-label="성명 *"
                 autoComplete="name"
                 maxLength={10}
                 placeholder="신청인 성명"
@@ -424,6 +431,7 @@ export function ExpenseForm() {
             <label>
               <span>시작일 *</span>
               <input
+                aria-label="시작일 *"
                 type="date"
                 {...register("tripStart", {
                   onChange: (event) =>
@@ -434,6 +442,7 @@ export function ExpenseForm() {
             <label>
               <span>종료일 *</span>
               <input
+                aria-label="종료일 *"
                 type="date"
                 {...register("tripEnd", {
                   onChange: (event) => {
@@ -447,11 +456,12 @@ export function ExpenseForm() {
             </label>
             <label>
               <span>작성일 *</span>
-              <input type="date" {...register("applicationDate")} />
+              <input aria-label="작성일 *" type="date" {...register("applicationDate")} />
             </label>
             <label className="field-span-two">
               <span>출장지 *</span>
               <input
+                aria-label="출장지 *"
                 list="recent-places"
                 maxLength={36}
                 placeholder="기관명 또는 지역"
@@ -478,6 +488,7 @@ export function ExpenseForm() {
             <label className="field-span-three">
               <span>출장목적 *</span>
               <input
+                aria-label="출장목적 *"
                 maxLength={60}
                 placeholder="출장명령서와 동일하게 입력하세요"
                 {...register("purpose")}
@@ -635,9 +646,35 @@ export function ExpenseForm() {
           <ul>
             {reviewItems.map((item) => <li key={item}>{item}</li>)}
           </ul>
+          <div
+            aria-label="실시간 필수 입력"
+            aria-live="polite"
+            className={downloadReady ? "live-validation complete" : "live-validation"}
+          >
+            {downloadReady ? (
+              <strong>필수 입력이 모두 완료되었습니다.</strong>
+            ) : batchMode ? (
+              <>
+                <strong>아직 입력이 필요한 출장 건이 있습니다.</strong>
+                <ul>
+                  {includedDrafts.map((draft, index) => {
+                    const result = validations[draft.candidate.id];
+                    return result?.valid ? null : (
+                      <li key={draft.candidate.id}>
+                        출장 건 {index + 1}: {result?.labels.join(", ") || "입력 내용"}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            ) : (
+              <span>필요한 입력: {currentValidation.labels.join(", ")}</span>
+            )}
+          </div>
           <label className="review-confirm">
             <input
               checked={reviewConfirmed}
+              disabled={!downloadReady}
               onChange={(event) =>
                 setConfirmedSignature(event.target.checked ? reviewSignature : null)
               }
@@ -651,6 +688,7 @@ export function ExpenseForm() {
           busy={busy}
           confirmed={reviewConfirmed}
           onDownload={download}
+          ready={downloadReady}
         />
         <button className="clear-button" onClick={clear} type="button">
           최근 학교·장소 지우기
@@ -662,38 +700,6 @@ export function ExpenseForm() {
 
 function FieldError({ message }: { message?: string }) {
   return message ? <span className="field-error">{message}</span> : null;
-}
-
-function validationLabel(path: PropertyKey[]): string {
-  const key = path.join(".");
-  const labels: Record<string, string> = {
-    school: "소속",
-    position: "직급(직위)",
-    name: "성명",
-    tripStart: "시작일",
-    tripEnd: "종료일",
-    applicationDate: "작성일",
-    destination: "출장지",
-    purpose: "출장목적",
-    attachmentOther: "기타 첨부서류명",
-  };
-  if (labels[key]) return labels[key];
-
-  const routeMatch = key.match(/^routes\.(\d+)\.(.+)$/);
-  if (routeMatch) {
-    const routeNumber = Number(routeMatch[1]) + 1;
-    const routeLabels: Record<string, string> = {
-      date: "일자",
-      transport: "교통편",
-      from: "출발지",
-      to: "도착지",
-      grade: "등급",
-      fare: "금액",
-    };
-    return `경로 ${routeNumber} ${routeLabels[routeMatch[2]] ?? "입력 내용"}`;
-  }
-
-  return "입력 내용";
 }
 
 function travelTypeLabel(type: TravelType | ""): string {
