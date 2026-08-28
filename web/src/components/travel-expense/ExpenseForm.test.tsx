@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ExpenseForm } from "./ExpenseForm";
 
 describe("여비정산 입력", () => {
@@ -109,6 +109,32 @@ describe("여비정산 입력", () => {
 
     await user.type(screen.getByPlaceholderText("신청인 성명"), "홍길동");
     await waitFor(() => expect(hwpButton).toBeDisabled());
+  });
+
+  it("HWP 요청에 선택한 템플릿 ID를 포함한다", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(new Uint8Array([1]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ExpenseForm />);
+
+    await user.type(screen.getByPlaceholderText("신청인 성명"), "홍길동");
+    await user.type(screen.getByLabelText("출발지 1"), "천안");
+    await user.type(screen.getByLabelText("도착지 1"), "서울");
+    await user.type(screen.getByLabelText("출장지 *"), "서울");
+    await user.type(screen.getByLabelText("출장목적 *"), "연수");
+    await user.click(
+      screen.getByRole("checkbox", { name: "입력 내용을 확인했습니다." }),
+    );
+    await user.click(screen.getByRole("button", { name: "HWP 내려받기" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toMatchObject({
+      templateId: "bokja-2026",
+    });
+    vi.unstubAllGlobals();
   });
 
   it("숙박비와 식비를 입력하지 않으면 정산 없음으로 점검한다", async () => {
