@@ -137,6 +137,29 @@ describe("불러온 출장 건 편집", () => {
     ).toBeEnabled();
   });
 
+  it("앞 출장 건을 제외해도 원래 출장 건 번호로 안내한다", async () => {
+    vi.mocked(readTripFiles).mockResolvedValueOnce([
+      formReadyCandidate("first", "가상교사A"),
+      formReadyCandidate("second", "가상교사B"),
+    ]);
+    const user = userEvent.setup();
+    render(<ExpenseForm />);
+    await user.upload(
+      screen.getByLabelText("출장 신청서 파일"),
+      new File(["xlsx"], "synthetic.xlsx"),
+    );
+
+    const firstCard = screen
+      .getByRole("button", { name: /출장 건 1/ })
+      .closest("li");
+    if (!firstCard) throw new Error("첫 출장 건 카드를 찾지 못했습니다.");
+    await user.click(within(firstCard).getByRole("checkbox", { name: "출력에 포함" }));
+
+    const liveValidation = screen.getByLabelText("실시간 필수 입력");
+    expect(within(liveValidation).getByText(/출장 건 2:/)).toBeVisible();
+    expect(within(liveValidation).queryByText(/출장 건 1:/)).not.toBeInTheDocument();
+  });
+
   it("출력에 포함한 여러 출장 건을 배열 요청으로 보낸다", async () => {
     const complete = (id: string, name: string): TripImportCandidate => ({
       ...formReadyCandidate(id, name, "가상기관"),

@@ -109,6 +109,15 @@ test("출장 건 목록을 데스크톱 4열·모바일 1열로 배치한다", a
   expect(columnCount).toBe(
     testInfo.project.name === "desktop-chromium" ? 4 : 1,
   );
+
+  await page.setViewportSize({ width: 800, height: 900 });
+  await expect
+    .poll(() =>
+      page.locator(".candidate-list").evaluate((element) =>
+        getComputedStyle(element).gridTemplateColumns.split(" ").length,
+      ),
+    )
+    .toBe(2);
 });
 
 test("여러 시트의 출장 건을 한 다중 페이지 PDF로 내려받는다", async ({

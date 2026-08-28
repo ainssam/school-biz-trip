@@ -114,9 +114,12 @@ export function ExpenseForm() {
   );
   const currentValidation = validateTravelExpenseDraft(currentValues);
   const batchMode = liveDrafts.length > 0;
-  const includedDrafts = batchMode
-    ? liveDrafts.filter((draft) => draft.included)
+  const includedDraftEntries = batchMode
+    ? liveDrafts
+        .map((draft, index) => ({ draft, displayIndex: index + 1 }))
+        .filter(({ draft }) => draft.included)
     : [];
+  const includedDrafts = includedDraftEntries.map(({ draft }) => draft);
   const downloadReady = batchMode
     ? includedDrafts.length > 0 &&
       includedDrafts.every(
@@ -199,7 +202,9 @@ export function ExpenseForm() {
       travelExpenseSchema.safeParse(draft),
     );
     const failedIndexes = parsedResults.flatMap((result, index) =>
-      result.success ? [] : [index],
+      result.success
+        ? []
+        : [batchMode ? includedDraftEntries[index].displayIndex : index + 1],
     );
     if (failedIndexes.length > 0 || requestedDrafts.length === 0) {
       if (requestedDrafts.length === 0) {
@@ -207,7 +212,6 @@ export function ExpenseForm() {
       } else if (batchMode) {
         setStatus(
           `직접 입력이 필요한 출장 건: ${failedIndexes
-            .map((index) => index + 1)
             .join(", ")}번`,
         );
       } else {
@@ -657,11 +661,11 @@ export function ExpenseForm() {
               <>
                 <strong>아직 입력이 필요한 출장 건이 있습니다.</strong>
                 <ul>
-                  {includedDrafts.map((draft, index) => {
+                  {includedDraftEntries.map(({ draft, displayIndex }) => {
                     const result = validations[draft.candidate.id];
                     return result?.valid ? null : (
                       <li key={draft.candidate.id}>
-                        출장 건 {index + 1}: {result?.labels.join(", ") || "입력 내용"}
+                        출장 건 {displayIndex}: {result?.labels.join(", ") || "입력 내용"}
                       </li>
                     );
                   })}
